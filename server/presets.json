@@ -1,0 +1,330 @@
+{
+    "marvel_dc": [
+        {
+            "id": 1,
+            "name": "Iron Man",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=IronMan"
+        },
+        {
+            "id": 2,
+            "name": "Spider-Man",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=SpiderMan"
+        },
+        {
+            "id": 3,
+            "name": "Batman",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Batman"
+        },
+        {
+            "id": 4,
+            "name": "Wonder Woman",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=WonderWoman"
+        },
+        {
+            "id": 5,
+            "name": "Superman",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Superman"
+        },
+        {
+            "id": 6,
+            "name": "Thor",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Thor"
+        },
+        {
+            "id": 7,
+            "name": "Captain America",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Cap"
+        },
+        {
+            "id": 8,
+            "name": "Black Widow",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Widow"
+        },
+        {
+            "id": 9,
+            "name": "Hulk",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Hulk"
+        },
+        {
+            "id": 10,
+            "name": "Flash",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Flash"
+        },
+        {
+            "id": 11,
+            "name": "Joker",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Joker"
+        },
+        {
+            "id": 12,
+            "name": "Harley Quinn",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Harley"
+        },
+        {
+            "id": 13,
+            "name": "Deadpool",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Deadpool"
+        },
+        {
+            "id": 14,
+            "name": "Wolverine",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Wolverine"
+        },
+        {
+            "id": 15,
+            "name": "Aquaman",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Aquaman"
+        },
+        {
+            "id": 16,
+            "name": "Thanos",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Thanos"
+        }
+    ],
+    "youtubers": [
+        {
+            "id": 17,
+            "name": "PewDiePie",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=PewDiePie"
+        },
+        {
+            "id": 18,
+            "name": "Jenna Marbles",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Jenna"
+        },
+        {
+            "id": 19,
+            "name": "Nigahiga",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Niga"
+        },
+        {
+            "id": 20,
+            "name": "Smosh",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Smosh"
+        },
+        {
+            "id": 21,
+            "name": "Markiplier",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Mark"
+        },
+        {
+            "id": 22,
+            "name": "Jacksepticeye",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Jack"
+        },
+        {
+            "id": 23,
+            "name": "DanTDM",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Dan"
+        },
+        {
+            "id": 24,
+            "name": "Zoella",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Zoella"
+        },
+        {
+            "id": 25,
+            "name": "Tyler Oakley",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Tyler"
+        },
+        {
+            "id": 26,
+            "name": "Shane Dawson",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Shane"
+        },
+        {
+            "id": 27,
+            "name": "MrBeast",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=MrBeast"
+        },
+        {
+            "id": 28,
+            "name": "Logan Paul",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Logan"
+        },
+        {
+            "id": 29,
+            "name": "Jake Paul",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Jake"
+        },
+        {
+            "id": 30,
+            "name": "KSI",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=KSI"
+        },
+        {
+            "id": 31,
+            "name": "RiceGum",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Rice"
+        },
+        {
+            "id": 32,
+            "name": "Leafy",
+            "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Leafy"
+        }
+    ],
+    "fruits_veg": [
+        {
+            "id": 33,
+            "name": "Apple",
+            "image": "https://api.dicebear.com/7.x/identicon/svg?seed=Apple"
+        },
+        {
+            "id": 34,
+            "name": "Banana",
+            "image": "https://api.dicebear.com/7.x/identicon/svg?seed=Banana"
+        },
+        {
+            "id": 35,
+            "name": "Carrot",
+            "image": "https://api.dicebear.com/7.x/identicon/svg?seed=Carrot"
+        },
+        {
+            "id": 36,
+            "name": "Broccoli",
+            "image": "https://api.dicebear.com/7.x/identicon/svg?seed=Broccoli"
+        },
+        {
+            "id": 37,
+            "name": "Strawberry",
+            "image": "https://api.dicebear.com/7.x/identicon/svg?seed=Strawberry"
+        },
+        {
+            "id": 38,
+            "name": "Pineapple",
+            "image": "https://api.dicebear.com/7.x/identicon/svg?seed=Pineapple"
+        },
+        {
+            "id": 39,
+            "name": "Watermelon",
+            "image": "https://api.dicebear.com/7.x/identicon/svg?seed=Watermelon"
+        },
+        {
+            "id": 40,
+            "name": "Grapes",
+            "image": "https://api.dicebear.com/7.x/identicon/svg?seed=Grapes"
+        },
+        {
+            "id": 41,
+            "name": "Onion",
+            "image": "https://api.dicebear.com/7.x/identicon/svg?seed=Onion"
+        },
+        {
+            "id": 42,
+            "name": "Tomato",
+            "image": "https://api.dicebear.com/7.x/identicon/svg?seed=Tomato"
+        },
+        {
+            "id": 43,
+            "name": "Potato",
+            "image": "https://api.dicebear.com/7.x/identicon/svg?seed=Potato"
+        },
+        {
+            "id": 44,
+            "name": "Corn",
+            "image": "https://api.dicebear.com/7.x/identicon/svg?seed=Corn"
+        },
+        {
+            "id": 45,
+            "name": "Blueberry",
+            "image": "https://api.dicebear.com/7.x/identicon/svg?seed=Blueberry"
+        },
+        {
+            "id": 46,
+            "name": "Peach",
+            "image": "https://api.dicebear.com/7.x/identicon/svg?seed=Peach"
+        },
+        {
+            "id": 47,
+            "name": "Pear",
+            "image": "https://api.dicebear.com/7.x/identicon/svg?seed=Pear"
+        },
+        {
+            "id": 48,
+            "name": "Pumpkin",
+            "image": "https://api.dicebear.com/7.x/identicon/svg?seed=Pumpkin"
+        }
+    ],
+    "anime": [
+        {
+            "id": 49,
+            "name": "Naruto",
+            "image": "https://api.dicebear.com/7.x/pixel-art/svg?seed=Naruto"
+        },
+        {
+            "id": 50,
+            "name": "Goku",
+            "image": "https://api.dicebear.com/7.x/pixel-art/svg?seed=Goku"
+        },
+        {
+            "id": 51,
+            "name": "Luffy",
+            "image": "https://api.dicebear.com/7.x/pixel-art/svg?seed=Luffy"
+        },
+        {
+            "id": 52,
+            "name": "Saitama",
+            "image": "https://api.dicebear.com/7.x/pixel-art/svg?seed=Saitama"
+        },
+        {
+            "id": 53,
+            "name": "Deku",
+            "image": "https://api.dicebear.com/7.x/pixel-art/svg?seed=Deku"
+        },
+        {
+            "id": 54,
+            "name": "Eren Yeager",
+            "image": "https://api.dicebear.com/7.x/pixel-art/svg?seed=Eren"
+        },
+        {
+            "id": 55,
+            "name": "Ichigo",
+            "image": "https://api.dicebear.com/7.x/pixel-art/svg?seed=Ichigo"
+        },
+        {
+            "id": 56,
+            "name": "Spike Spiegel",
+            "image": "https://api.dicebear.com/7.x/pixel-art/svg?seed=Spike"
+        },
+        {
+            "id": 57,
+            "name": "Sailor Moon",
+            "image": "https://api.dicebear.com/7.x/pixel-art/svg?seed=Sailor"
+        },
+        {
+            "id": 58,
+            "name": "Ash Ketchum",
+            "image": "https://api.dicebear.com/7.x/pixel-art/svg?seed=Ash"
+        },
+        {
+            "id": 59,
+            "name": "Edward Elric",
+            "image": "https://api.dicebear.com/7.x/pixel-art/svg?seed=Edward"
+        },
+        {
+            "id": 60,
+            "name": "Tanjiro",
+            "image": "https://api.dicebear.com/7.x/pixel-art/svg?seed=Tanjiro"
+        },
+        {
+            "id": 61,
+            "name": "Mikasa",
+            "image": "https://api.dicebear.com/7.x/pixel-art/svg?seed=Mikasa"
+        },
+        {
+            "id": 62,
+            "name": "Levi",
+            "image": "https://api.dicebear.com/7.x/pixel-art/svg?seed=Levi"
+        },
+        {
+            "id": 63,
+            "name": "Kaneki",
+            "image": "https://api.dicebear.com/7.x/pixel-art/svg?seed=Kaneki"
+        },
+        {
+            "id": 64,
+            "name": "Light Yagami",
+            "image": "https://api.dicebear.com/7.x/pixel-art/svg?seed=Light"
+        }
+    ]
+}
