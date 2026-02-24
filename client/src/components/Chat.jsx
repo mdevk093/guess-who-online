@@ -23,12 +23,12 @@ const Chat = () => {
     };
 
     return (
-        <div className="flex flex-col h-full bg-slate-50/50 rounded-[2rem] border border-slate-100 overflow-hidden shadow-sm">
-            <div className="p-4 bg-indigo-600 flex items-center justify-between">
-                <span className="text-xs font-black text-white/90 uppercase tracking-[0.2em]">Game Chat</span>
+        <div className="flex flex-col h-full bg-slate-50/50 rounded-2xl sm:rounded-[2rem] border border-slate-100 overflow-hidden shadow-sm">
+            <div className="p-3 sm:p-4 bg-indigo-600 flex items-center justify-between">
+                <span className="text-[10px] sm:text-xs font-black text-white/90 uppercase tracking-[0.2em]">Game Chat</span>
                 <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-sm shadow-emerald-400" />
-                    <span className="text-[10px] font-black text-white/70 uppercase">Online</span>
+                    <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-emerald-400 rounded-full animate-pulse shadow-sm shadow-emerald-400" />
+                    <span className="text-[9px] sm:text-[10px] font-black text-white/70 uppercase">Online</span>
                 </div>
             </div>
 
@@ -54,12 +54,12 @@ const Chat = () => {
                     const isMe = msg.sender === socket.id;
                     return (
                         <div key={i} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                            <div className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm font-medium shadow-sm leading-relaxed ${isMe
-                                    ? 'bg-indigo-600 text-white rounded-tr-none shadow-indigo-100'
-                                    : 'bg-white text-slate-700 rounded-tl-none border border-slate-100 shadow-slate-100'
+                            <div className={`max-w-[90%] sm:max-w-[85%] px-3 sm:px-4 py-2 sm:py-3 rounded-xl sm:rounded-2xl text-[13px] sm:text-sm font-medium shadow-sm leading-relaxed ${isMe
+                                ? 'bg-indigo-600 text-white rounded-tr-none shadow-indigo-100'
+                                : 'bg-white text-slate-700 rounded-tl-none border border-slate-100 shadow-slate-100'
                                 }`}>
                                 {msg.text}
-                                <div className={`text-[10px] mt-1.5 opacity-50 font-bold ${isMe ? 'text-white text-right' : 'text-slate-400'}`}>
+                                <div className={`text-[9px] sm:text-[10px] mt-1 opacity-50 font-bold ${isMe ? 'text-white text-right' : 'text-slate-400'}`}>
                                     {msg.timestamp}
                                 </div>
                             </div>
@@ -69,20 +69,20 @@ const Chat = () => {
                 <div ref={chatEndRef} />
             </div>
 
-            <form onSubmit={handleSend} className="p-4 bg-white border-t border-slate-100 shadow-[0_-10px_20px_-5px_rgba(0,0,0,0.02)]">
+            <form onSubmit={handleSend} className="p-3 sm:p-4 bg-white border-t border-slate-100 shadow-[0_-10px_20px_-5px_rgba(0,0,0,0.02)]">
                 <div className="relative group">
                     <input
                         type="text"
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        placeholder="Ask a question..."
-                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-5 pr-12 py-4 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all placeholder:text-slate-300"
+                        placeholder="Message..."
+                        className="w-full bg-slate-50 border border-slate-100 rounded-xl sm:rounded-2xl pl-4 pr-10 py-3 sm:py-4 text-[13px] sm:text-sm font-medium focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all placeholder:text-slate-300"
                     />
                     <button
                         type="submit"
-                        className="absolute right-2 top-2 w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-90"
+                        className="absolute right-1.5 top-1.5 w-8 h-8 sm:w-10 sm:h-10 bg-indigo-600 text-white rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-90"
                     >
-                        <svg className="w-5 h-5 transform rotate-90" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5 transform rotate-90" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" /></svg>
                     </button>
                 </div>
             </form>

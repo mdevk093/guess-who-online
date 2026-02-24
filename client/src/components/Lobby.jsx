@@ -8,8 +8,8 @@ const Lobby = () => {
     const [isJoining, setIsJoining] = useState(false);
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
-            <div className="max-w-md w-full bg-white rounded-[2.5rem] p-10 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.1)] border border-slate-100">
+        <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
+            <div className="w-full max-w-md bg-white rounded-[2.5rem] p-8 sm:p-10 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.1)] border border-slate-100">
                 <div className="flex justify-center mb-8">
                     <div className="w-16 h-16 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-lg shadow-indigo-200">
                         <span className="text-white text-3xl font-black italic">?</span>
