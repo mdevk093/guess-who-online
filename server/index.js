@@ -32,7 +32,7 @@ if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.join(__dirname, '../client/dist')));
 
     // Handle SPA routing
-    app.get('*', (req, res) => {
+    app.get('*splat', (req, res) => {
         // Exclude /presets and /uploads as they are handled above
         if (!req.url.startsWith('/presets') && !req.url.startsWith('/uploads')) {
             res.sendFile(path.join(__dirname, '../client/dist', 'index.html'));
