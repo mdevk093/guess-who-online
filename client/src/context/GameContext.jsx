@@ -5,7 +5,7 @@ const GameContext = createContext();
 
 export const useGame = () => useContext(GameContext);
 
-const SOCKET_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
+const SOCKET_URL = import.meta.env.VITE_SERVER_URL || (import.meta.env.PROD ? window.location.origin : 'http://localhost:3001');
 
 export const GameProvider = ({ children }) => {
     const [socket, setSocket] = useState(null);
