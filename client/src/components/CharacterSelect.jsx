@@ -11,14 +11,14 @@ const CharacterSelect = () => {
 
     useEffect(() => {
         // Fetch presets
-        fetch('http://localhost:3001/presets')
+        fetch('/presets')
             .then(res => res.json())
             .then(data => setPresets(data));
     }, []);
 
     useEffect(() => {
         if (mode === 'default') {
-            fetch('http://localhost:3001/defaultCharacters.json')
+            fetch('/defaultCharacters.json')
                 .then(res => res.json())
                 .then(data => setLocalCharacters(data));
         } else if (presets[mode]) {
