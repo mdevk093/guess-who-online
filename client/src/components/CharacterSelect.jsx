@@ -122,28 +122,28 @@ const CharacterSelect = () => {
                         <p className="text-sm text-slate-400 font-medium">Your opponent needs to guess this!</p>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 sm:gap-6 pb-12 sm:pb-0">
+                    <div className="grid grid-cols-5 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5 sm:gap-6 pb-12 sm:pb-0">
                         {charactersToDisplay.map(char => (
                             <div
                                 key={char.id}
                                 onClick={() => !me?.isReady && setSelectedId(char.id)}
-                                className={`group relative bg-white rounded-3xl cursor-pointer transition-all duration-300 transform overflow-hidden ${!me?.isReady && 'hover:-translate-y-2'
+                                className={`group relative bg-white rounded-lg sm:rounded-3xl cursor-pointer transition-all duration-300 transform overflow-hidden ${!me?.isReady && 'hover:-translate-y-1 sm:hover:-translate-y-2'
                                     } border ${selectedId === char.id
-                                        ? 'border-indigo-600 ring-4 ring-indigo-50 shadow-2xl scale-[1.02]'
+                                        ? 'border-indigo-600 ring-2 sm:ring-4 ring-indigo-50 shadow-2xl scale-[1.02]'
                                         : 'border-slate-900/10 hover:border-indigo-100 shadow-lg shadow-slate-200/50'
                                     } ${me?.isReady ? 'opacity-50 grayscale pointer-events-none' : ''}`}
                             >
-                                <div className="aspect-[4/5] p-3 overflow-hidden rounded-t-3xl text-center flex items-center justify-center">
+                                <div className="aspect-[4/5] p-0.5 sm:p-3 overflow-hidden rounded-t-lg sm:rounded-t-3xl text-center flex items-center justify-center">
                                     <img
                                         src={char.image}
                                         alt={char.name}
-                                        className={`w-full h-full object-cover rounded-2xl transition-all duration-300 ${selectedId === char.id ? 'scale-110' : 'group-hover:scale-105'
+                                        className={`w-full h-full object-cover rounded-md sm:rounded-2xl transition-all duration-300 ${selectedId === char.id ? 'scale-110' : 'group-hover:scale-105'
                                             }`}
                                     />
                                 </div>
-                                <div className={`p-4 text-center border-t border-slate-50 transition-colors ${selectedId === char.id ? 'bg-indigo-600' : 'bg-white'
+                                <div className={`p-1 sm:p-4 text-center border-t border-slate-50 transition-colors ${selectedId === char.id ? 'bg-indigo-600' : 'bg-white'
                                     }`}>
-                                    <p className={`text-sm font-black truncate ${selectedId === char.id ? 'text-white' : 'text-slate-700'
+                                    <p className={`text-[7px] sm:text-sm font-black truncate ${selectedId === char.id ? 'text-white' : 'text-slate-700'
                                         }`}>
                                         {char.name}
                                     </p>

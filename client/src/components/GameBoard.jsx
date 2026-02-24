@@ -7,10 +7,29 @@ const GameBoard = () => {
     const [eliminatedIds, setEliminatedIds] = useState([]);
     const [guessModalOpen, setGuessModalOpen] = useState(false);
     const [mobileTab, setMobileTab] = useState('board'); // 'board' or 'chat'
+    const [unreadMessages, setUnreadMessages] = useState(false);
 
     const me = room.players.find(p => p.id === socket.id);
     const myTurn = room.players[room.turn].id === socket.id;
     const opponent = room.players.find(p => p.id !== socket.id);
+
+    // Track unread messages on mobile
+    React.useEffect(() => {
+        if (room?.chat?.length > 0) {
+            const lastMsg = room.chat[room.chat.length - 1];
+            // If message is from opponent and we are NOT on chat tab
+            if (lastMsg.sender !== socket.id && mobileTab !== 'chat') {
+                setUnreadMessages(true);
+            }
+        }
+    }, [room?.chat, mobileTab, socket.id]);
+
+    // Clear unread messages when opening chat tab
+    React.useEffect(() => {
+        if (mobileTab === 'chat') {
+            setUnreadMessages(false);
+        }
+    }, [mobileTab]);
 
     const toggleEliminate = (id) => {
         if (eliminatedIds.includes(id)) {
@@ -92,26 +111,26 @@ const GameBoard = () => {
             {/* Main Content */}
             <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
                 {/* Board */}
-                <div className={`flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-50/50 transition-all duration-300 ${mobileTab === 'chat' ? 'hidden sm:block' : 'block'}`}>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 sm:gap-6 pb-20">
+                <div className={`flex-1 overflow-y-auto p-3 sm:p-8 bg-slate-50/50 transition-all duration-300 ${mobileTab === 'chat' ? 'hidden sm:block' : 'block'}`}>
+                    <div className="grid grid-cols-5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-1.5 sm:gap-6 pb-20">
                         {room.characters.map((char) => (
                             <div
                                 key={char.id}
                                 onClick={() => toggleEliminate(char.id)}
-                                className={`group relative bg-white rounded-2xl sm:rounded-3xl cursor-pointer transition-all duration-300 transform overflow-hidden border border-slate-900/10 ${eliminatedIds.includes(char.id)
+                                className={`group relative bg-white rounded-lg sm:rounded-3xl cursor-pointer transition-all duration-300 transform overflow-hidden border border-slate-900/10 ${eliminatedIds.includes(char.id)
                                     ? 'opacity-30 grayscale scale-95 brightness-75'
-                                    : 'hover:-translate-y-2 shadow-xl shadow-slate-200/50'
+                                    : 'hover:-translate-y-1 shadow-xl shadow-slate-200/50'
                                     }`}
                             >
-                                <div className="aspect-[4/5] p-2 sm:p-3 overflow-hidden rounded-t-2xl sm:rounded-t-3xl text-center flex items-center justify-center">
+                                <div className="aspect-[4/5] p-0.5 sm:p-3 overflow-hidden rounded-t-lg sm:rounded-t-3xl text-center flex items-center justify-center">
                                     <img
                                         src={char.image}
                                         alt={char.name}
-                                        className="w-full h-full object-cover rounded-xl sm:rounded-2xl"
+                                        className="w-full h-full object-cover rounded-md sm:rounded-2xl"
                                     />
                                 </div>
-                                <div className="p-2 sm:p-3 bg-white rounded-b-2xl sm:rounded-b-3xl border-t border-slate-50 text-center">
-                                    <p className="text-[10px] sm:text-sm font-black text-slate-700 truncate">{char.name}</p>
+                                <div className="p-1 sm:p-3 bg-white rounded-b-lg sm:rounded-b-3xl border-t border-slate-50 text-center">
+                                    <p className="text-[7px] sm:text-sm font-black text-slate-700 truncate">{char.name}</p>
                                 </div>
 
                                 {eliminatedIds.includes(char.id) && (
@@ -165,6 +184,9 @@ const GameBoard = () => {
                     >
                         <div className="relative">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                            {unreadMessages && (
+                                <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white animate-pulse" />
+                            )}
                         </div>
                         <span className="text-[10px] font-black uppercase tracking-widest">Chat</span>
                     </button>
@@ -176,17 +198,17 @@ const GameBoard = () => {
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[100] p-6">
                     <div className="bg-white max-w-2xl w-full rounded-[3rem] p-10 shadow-2xl border border-slate-100 flex flex-col max-h-[90vh]">
                         <h3 className="text-2xl font-black mb-6 text-slate-900">Make Your Guess</h3>
-                        <div className="flex-1 overflow-y-auto grid grid-cols-3 sm:grid-cols-4 gap-4 pr-2">
+                        <div className="flex-1 overflow-y-auto grid grid-cols-5 gap-1.5 pr-1">
                             {room.characters.map(char => (
                                 <button
                                     key={char.id}
                                     onClick={() => handleGuess(char)}
-                                    className="group relative bg-slate-50 rounded-2xl p-2 border border-slate-900/10 hover:border-indigo-600 transition-all transform hover:scale-105"
+                                    className="group relative bg-slate-50 rounded-lg p-0.5 border border-slate-900/10 hover:border-indigo-600 transition-all transform hover:scale-105"
                                 >
-                                    <div className="aspect-square rounded-xl overflow-hidden mb-2">
+                                    <div className="aspect-square rounded-md overflow-hidden mb-0.5">
                                         <img src={char.image} alt={char.name} className="w-full h-full object-cover" />
                                     </div>
-                                    <p className="text-[10px] font-bold text-slate-600 truncate">{char.name}</p>
+                                    <p className="text-[7px] font-bold text-slate-600 truncate">{char.name}</p>
                                 </button>
                             ))}
                         </div>
