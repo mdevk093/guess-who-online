@@ -1,26 +1,122 @@
 [
-  {"id": 1, "name": "Alex", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Alex"},
-  {"id": 2, "name": "Jordan", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Jordan"},
-  {"id": 3, "name": "Taylor", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Taylor"},
-  {"id": 4, "name": "Casey", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Casey"},
-  {"id": 5, "name": "Morgan", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Morgan"},
-  {"id": 6, "name": "Riley", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Riley"},
-  {"id": 7, "name": "Skyler", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Skyler"},
-  {"id": 8, "name": "Jamie", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Jamie"},
-  {"id": 9, "name": "Quinn", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Quinn"},
-  {"id": 10, "name": "Peyton", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Peyton"},
-  {"id": 11, "name": "Dakota", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Dakota"},
-  {"id": 12, "name": "Avery", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Avery"},
-  {"id": 13, "name": "Robin", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Robin"},
-  {"id": 14, "name": "Drew", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Drew"},
-  {"id": 15, "name": "Hayden", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Hayden"},
-  {"id": 16, "name": "Charlie", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Charlie"},
-  {"id": 17, "name": "Blake", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Blake"},
-  {"id": 18, "name": "Logan", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Logan"},
-  {"id": 19, "name": "Parker", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Parker"},
-  {"id": 20, "name": "Remi", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Remi"},
-  {"id": 21, "name": "Sage", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Sage"},
-  {"id": 22, "name": "River", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=River"},
-  {"id": 23, "name": "Phoenix", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Phoenix"},
-  {"id": 24, "name": "Indigo", "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Indigo"}
+  {
+    "id": 1,
+    "name": "Alex",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Alex"
+  },
+  {
+    "id": 2,
+    "name": "Jordan",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Jordan"
+  },
+  {
+    "id": 3,
+    "name": "Taylor",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Taylor"
+  },
+  {
+    "id": 4,
+    "name": "Casey",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Casey"
+  },
+  {
+    "id": 5,
+    "name": "Morgan",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Morgan"
+  },
+  {
+    "id": 6,
+    "name": "Riley",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Riley"
+  },
+  {
+    "id": 7,
+    "name": "Skyler",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Skyler"
+  },
+  {
+    "id": 8,
+    "name": "Jamie",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Jamie"
+  },
+  {
+    "id": 9,
+    "name": "Quinn",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Quinn"
+  },
+  {
+    "id": 10,
+    "name": "Peyton",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Peyton"
+  },
+  {
+    "id": 11,
+    "name": "Dakota",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Dakota"
+  },
+  {
+    "id": 12,
+    "name": "Avery",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Avery"
+  },
+  {
+    "id": 13,
+    "name": "Robin",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Robin"
+  },
+  {
+    "id": 14,
+    "name": "Drew",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Drew"
+  },
+  {
+    "id": 15,
+    "name": "Hayden",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Hayden"
+  },
+  {
+    "id": 16,
+    "name": "Charlie",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Charlie"
+  },
+  {
+    "id": 17,
+    "name": "Blake",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Blake"
+  },
+  {
+    "id": 18,
+    "name": "Logan",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Logan"
+  },
+  {
+    "id": 19,
+    "name": "Parker",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Parker"
+  },
+  {
+    "id": 20,
+    "name": "Remi",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Remi"
+  },
+  {
+    "id": 21,
+    "name": "Sage",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Sage"
+  },
+  {
+    "id": 22,
+    "name": "River",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=River"
+  },
+  {
+    "id": 23,
+    "name": "Phoenix",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Phoenix"
+  },
+  {
+    "id": 24,
+    "name": "Indigo",
+    "image": "https://api.dicebear.com/7.x/avataaars/svg?seed=Indigo"
+  }
 ]

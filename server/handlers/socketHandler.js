@@ -55,17 +55,13 @@ function handleSocketEvents(io, socket) {
             const playerIndex = room.players.findIndex(p => p.id === socket.id);
             if (playerIndex !== -1) {
                 const playerName = room.players[playerIndex].name;
-                room.players.splice(playerIndex, 1);
+
+                // Notify the other player and terminate the room
+                io.to(roomId).emit('room_terminated', `${playerName} has quit the game.`);
+                rooms.delete(roomId);
                 socket.leave(roomId);
 
-                if (room.players.length === 0) {
-                    rooms.delete(roomId);
-                } else {
-                    // Pass host if needed
-                    if (room.players[0]) room.players[0].isHost = true;
-                    io.to(roomId).emit('room_updated', room);
-                }
-                console.log(`${playerName} left room: ${roomId}`);
+                console.log(`${playerName} left room: ${roomId}. Room terminated.`);
             }
         }
     });
@@ -75,9 +71,10 @@ function handleSocketEvents(io, socket) {
         rooms.forEach((room, roomId) => {
             const playerIndex = room.players.findIndex(p => p.id === socket.id);
             if (playerIndex !== -1) {
-                io.to(roomId).emit('room_terminated', 'The other player has disconnected.');
+                const playerName = room.players[playerIndex].name;
+                io.to(roomId).emit('room_terminated', `${playerName} has disconnected.`);
                 rooms.delete(roomId);
-                console.log(`Room ${roomId} terminated due to disconnect.`);
+                console.log(`Room ${roomId} terminated due to ${playerName} disconnecting.`);
             }
         });
     });

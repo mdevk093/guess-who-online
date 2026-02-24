@@ -104,7 +104,7 @@ const GameBoard = () => {
                             <div
                                 key={char.id}
                                 onClick={() => toggleEliminate(char.id)}
-                                className={`group relative bg-white rounded-3xl cursor-pointer transition-all duration-300 transform ${eliminatedIds.includes(char.id)
+                                className={`group relative bg-white rounded-3xl cursor-pointer transition-all duration-300 transform overflow-hidden border border-slate-900/10 ${eliminatedIds.includes(char.id)
                                     ? 'opacity-30 grayscale scale-95 brightness-75'
                                     : 'hover:-translate-y-2 shadow-xl shadow-slate-200/50'
                                     }`}
@@ -135,7 +135,7 @@ const GameBoard = () => {
                 <div className="w-96 flex flex-col gap-6 p-8 overflow-y-auto bg-white border-l border-slate-100">
                     {/* Your Character Card */}
                     <div className="bg-slate-50/50 rounded-[2.5rem] p-6 border border-slate-100 shadow-sm flex items-center gap-6">
-                        <div className="w-20 h-20 rounded-3xl overflow-hidden border-4 border-white shadow-xl">
+                        <div className="w-20 h-20 rounded-3xl overflow-hidden border-4 border-white shadow-xl ring-1 ring-slate-900/10">
                             <img src={me?.selectedCharacter?.image} alt="You" className="w-full h-full object-cover" />
                         </div>
                         <div>
@@ -167,7 +167,7 @@ const GameBoard = () => {
                                 <button
                                     key={char.id}
                                     onClick={() => handleGuess(char)}
-                                    className="group relative bg-slate-50 rounded-2xl p-2 border border-slate-100 hover:border-indigo-600 transition-all transform hover:scale-105"
+                                    className="group relative bg-slate-50 rounded-2xl p-2 border border-slate-900/10 hover:border-indigo-600 transition-all transform hover:scale-105"
                                 >
                                     <div className="aspect-square rounded-xl overflow-hidden mb-2">
                                         <img src={char.image} alt={char.name} className="w-full h-full object-cover" />

@@ -136,10 +136,10 @@ const CharacterSelect = () => {
                             <div
                                 key={char.id}
                                 onClick={() => !me?.isReady && setSelectedId(char.id)}
-                                className={`group relative bg-white rounded-3xl cursor-pointer transition-all duration-300 transform ${!me?.isReady && 'hover:-translate-y-2'
-                                    } border-2 ${selectedId === char.id
+                                className={`group relative bg-white rounded-3xl cursor-pointer transition-all duration-300 transform overflow-hidden ${!me?.isReady && 'hover:-translate-y-2'
+                                    } border ${selectedId === char.id
                                         ? 'border-indigo-600 ring-4 ring-indigo-50 shadow-2xl scale-[1.02]'
-                                        : 'border-white hover:border-indigo-100 shadow-lg shadow-slate-200/50'
+                                        : 'border-slate-900/10 hover:border-indigo-100 shadow-lg shadow-slate-200/50'
                                     } ${me?.isReady ? 'opacity-50 grayscale pointer-events-none' : ''}`}
                             >
                                 <div className="aspect-[4/5] p-3 overflow-hidden rounded-t-3xl text-center flex items-center justify-center">
