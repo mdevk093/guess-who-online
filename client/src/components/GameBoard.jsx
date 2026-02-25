@@ -6,6 +6,7 @@ const GameBoard = () => {
     const { room, socket, makeGuess, restartGame, endTurn, playTick, updateEliminatedCount, sendMessage, leaveRoom, opponentTyping } = useGame();
     const [eliminatedIds, setEliminatedIds] = useState([]);
     const [guessModalOpen, setGuessModalOpen] = useState(false);
+    const [cardPreviewOpen, setCardPreviewOpen] = useState(false);
     const [mobileTab, setMobileTab] = useState('board'); // 'board' or 'chat'
     const [unreadMessages, setUnreadMessages] = useState(false);
     const [timeLeft, setTimeLeft] = useState(null);
@@ -81,13 +82,17 @@ const GameBoard = () => {
             const elapsed = Date.now() - room.turnStartTime;
             const remaining = Math.max(0, timerLimitMs - elapsed);
             const seconds = Math.ceil(remaining / 1000);
+
+            // Rock-solid 500ms interval for ticking
+            const currentTickBlock = Math.floor(remaining / 500);
+
             setTimeLeft(seconds);
 
-            // Ticking sound for final 5 seconds
-            if (seconds > 0 && seconds <= 5 && seconds !== lastTickRef.current) {
+            // Ticking sound for final 5 seconds (every 500ms)
+            if (remaining > 0 && remaining <= 5000 && currentTickBlock !== lastTickRef.current) {
                 playTick();
-                lastTickRef.current = seconds;
-            } else if (seconds <= 0 || seconds > 5) {
+                lastTickRef.current = currentTickBlock;
+            } else if (remaining <= 0 || remaining > 5000) {
                 lastTickRef.current = null;
             }
 
@@ -103,7 +108,7 @@ const GameBoard = () => {
         };
 
         updateTimer();
-        const interval = setInterval(updateTimer, 1000);
+        const interval = setInterval(updateTimer, 50); // Faster check (50ms) for zero-jitter rhythm
         return () => clearInterval(interval);
     }, [room.turnStartTime, room.settings?.timerLimit, myTurn, isGameOver, room.gameState, endTurn]);
 
@@ -254,7 +259,10 @@ const GameBoard = () => {
                 {/* Template A: Mobile Action Bar */}
                 <div className="sm:hidden fixed bottom-0 left-0 right-0 h-20 bg-white border-t border-slate-100 px-4 flex items-center justify-between z-50 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
                     {/* Left: Your Character */}
-                    <div className="w-12 h-12 rounded-xl overflow-hidden border-2 border-indigo-100 shadow-sm shrink-0">
+                    <div
+                        onClick={() => setCardPreviewOpen(true)}
+                        className="w-12 h-12 rounded-xl overflow-hidden border-2 border-indigo-100 shadow-sm shrink-0 cursor-pointer active:scale-90 transition-all"
+                    >
                         <img src={me?.selectedCharacter?.image} alt="Me" className="w-full h-full object-cover" />
                     </div>
 
@@ -347,6 +355,30 @@ const GameBoard = () => {
                         >
                             Play Again
                         </button>
+                    </div>
+                </div>
+            )}
+            {/* Secret Card Preview Modal (Mobile) */}
+            {cardPreviewOpen && (
+                <div
+                    className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl flex items-center justify-center z-[300] p-6 animate-in fade-in duration-300"
+                    onClick={() => setCardPreviewOpen(false)}
+                >
+                    <div className="relative group max-w-sm w-full animate-in zoom-in duration-300">
+                        <div className="absolute -top-12 right-0 bg-white/20 hover:bg-white/30 text-white w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-md transition-all cursor-pointer">
+                            <span className="text-2xl font-black">×</span>
+                        </div>
+                        <div className="bg-white p-2 rounded-[2.5rem] shadow-2xl shadow-black/50 overflow-hidden ring-4 ring-white/20">
+                            <img
+                                src={me?.selectedCharacter?.image}
+                                alt={me?.selectedCharacter?.name}
+                                className="w-full aspect-[4/5] object-cover rounded-[2rem]"
+                            />
+                            <div className="p-6 text-center">
+                                <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest block mb-1 leading-none">Your Identity</span>
+                                <h3 className="text-3xl font-black text-slate-800 tracking-tight leading-none">{me?.selectedCharacter?.name}</h3>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
