@@ -15,6 +15,10 @@ function handleSocketEvents(io, socket) {
             }],
             gameState: 'LOBBY', // LOBBY, SELECTING, PLAYING, GAME_OVER
             characters: [],
+            settings: {
+                timerLimit: null // null or minutes (1-5)
+            },
+            turnStartTime: null,
             turn: 0,
             chat: []
         };
@@ -80,10 +84,11 @@ function handleSocketEvents(io, socket) {
     });
 
     // Start Selection Phase
-    socket.on('start_game', ({ roomId, characters }) => {
+    socket.on('start_game', ({ roomId, characters, settings }) => {
         const room = rooms.get(roomId);
         if (room && room.players[0].id === socket.id) {
             room.characters = characters;
+            room.settings = settings || { timerLimit: null };
             room.gameState = 'SELECTING';
             io.to(roomId).emit('game_started', room);
         }
@@ -102,6 +107,7 @@ function handleSocketEvents(io, socket) {
                 if (room.players.length === 2 && room.players.every(p => p.isReady)) {
                     room.gameState = 'PLAYING';
                     room.turn = 0; // Player 1 starts
+                    room.turnStartTime = Date.now();
                     io.to(roomId).emit('start_playing', room);
                 } else {
                     io.to(roomId).emit('room_updated', room);
@@ -114,14 +120,32 @@ function handleSocketEvents(io, socket) {
     socket.on('send_message', ({ roomId, message }) => {
         const room = rooms.get(roomId);
         if (room) {
-            const msgData = {
-                sender: socket.id,
-                text: message,
-                timestamp: new Date().toLocaleTimeString()
-            };
+            let msgData;
+            // Check if it's a system divider message
+            if (typeof message === 'object' && message.type === 'DIVIDER') {
+                msgData = {
+                    ...message,
+                    timestamp: new Date().toLocaleTimeString()
+                };
+            } else {
+                msgData = {
+                    sender: socket.id,
+                    text: message,
+                    timestamp: new Date().toLocaleTimeString()
+                };
+            }
             room.chat.push(msgData);
             io.to(roomId).emit('receive_message', msgData);
         }
+    });
+
+    // Typing Status
+    socket.on('typing', ({ roomId }) => {
+        socket.to(roomId).emit('opponent_typing');
+    });
+
+    socket.on('stop_typing', ({ roomId }) => {
+        socket.to(roomId).emit('opponent_stop_typing');
     });
 
     // Make Guess
@@ -142,6 +166,7 @@ function handleSocketEvents(io, socket) {
                 // Wrong guess - notify guesser specifically to eliminate, and switch turn
                 socket.emit('guess_result', { isCorrect: false, characterId: character.id });
                 room.turn = (room.turn + 1) % room.players.length;
+                room.turnStartTime = Date.now();
                 io.to(roomId).emit('room_updated', room);
             }
             console.log(`Guess made in room ${roomId}. Correct: ${isCorrect}`);
@@ -177,8 +202,21 @@ function handleSocketEvents(io, socket) {
         const room = rooms.get(roomId);
         if (room && room.gameState === 'PLAYING') {
             room.turn = (room.turn + 1) % room.players.length;
+            room.turnStartTime = Date.now();
             io.to(roomId).emit('room_updated', room);
             console.log(`Turn ended in room ${roomId}. New turn: ${room.turn}`);
+        }
+    });
+
+    // Update Eliminated Count
+    socket.on('update_eliminated_count', ({ roomId, count }) => {
+        const room = rooms.get(roomId);
+        if (room) {
+            const player = room.players.find(p => p.id === socket.id);
+            if (player) {
+                player.eliminatedCount = count;
+                io.to(roomId).emit('room_updated', room);
+            }
         }
     });
 }

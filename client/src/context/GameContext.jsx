@@ -12,30 +12,79 @@ export const GameProvider = ({ children }) => {
     const [room, setRoom] = useState(null);
     const [playerName, setPlayerName] = useState('');
     const [error, setError] = useState('');
+    const [opponentTyping, setOpponentTyping] = useState(false);
+    const audioContextRef = React.useRef(null);
 
-    const sendMessage = (message) => {
-        if (room) {
+    // Audio for turn changes (Programmatic Ding)
+    const playPing = React.useCallback(() => {
+        try {
+            if (!audioContextRef.current) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                audioContextRef.current = new AudioContext();
+            }
+
+            const context = audioContextRef.current;
+            if (context.state === 'suspended') {
+                context.resume();
+            }
+
+            const oscillator = context.createOscillator();
+            const gainNode = context.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(context.destination);
+
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(880, context.currentTime); // A5 note
+
+            gainNode.gain.setValueAtTime(0, context.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.5, context.currentTime + 0.02);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.4);
+
+            oscillator.start();
+            oscillator.stop(context.currentTime + 0.4);
+            console.log("🔊 Turn notification played");
+        } catch (err) {
+            console.error("Audio playback error:", err);
+        }
+    }, []);
+
+    const sendMessage = React.useCallback((message) => {
+        if (room && socket) {
             socket.emit('send_message', { roomId: room.id, message });
         }
-    };
+    }, [room?.id, socket]);
 
-    const makeGuess = (character) => {
-        if (room) {
+    const sendTypingStatus = React.useCallback((isTyping) => {
+        if (room && socket) {
+            socket.emit(isTyping ? 'typing' : 'stop_typing', { roomId: room.id });
+        }
+    }, [room?.id, socket]);
+
+    const makeGuess = React.useCallback((character) => {
+        if (room && socket) {
             socket.emit('make_guess', { roomId: room.id, character });
         }
-    };
+    }, [room?.id, socket]);
 
-    const restartGame = () => {
-        if (room) {
+    const restartGame = React.useCallback(() => {
+        if (room && socket) {
             socket.emit('restart_game', { roomId: room.id });
         }
-    };
+    }, [room?.id, socket]);
 
-    const endTurn = () => {
-        if (room) {
+    const endTurn = React.useCallback(() => {
+        if (room && socket) {
             socket.emit('end_turn', { roomId: room.id });
         }
-    };
+    }, [room?.id, socket]);
+
+    const updateEliminatedCount = React.useCallback((count) => {
+        if (room && socket) {
+            socket.emit('update_eliminated_count', { roomId: room.id, count });
+        }
+    }, [room?.id, socket]);
 
     useEffect(() => {
         const newSocket = io(SOCKET_URL);
@@ -75,6 +124,15 @@ export const GameProvider = ({ children }) => {
                     chat: [...prev.chat, msgData]
                 };
             });
+            setOpponentTyping(false); // Stop typing when message received
+        });
+
+        newSocket.on('opponent_typing', () => {
+            setOpponentTyping(true);
+        });
+
+        newSocket.on('opponent_stop_typing', () => {
+            setOpponentTyping(false);
         });
 
         newSocket.on('guess_result', ({ isCorrect, characterId }) => {
@@ -104,24 +162,31 @@ export const GameProvider = ({ children }) => {
         socket.emit('join_room', { roomId, playerName: name });
     };
 
-    const startGame = (characters) => {
-        if (room) {
-            socket.emit('start_game', { roomId: room.id, characters });
+    const startGame = React.useCallback((characters, settings) => {
+        if (room && socket) {
+            socket.emit('start_game', { roomId: room.id, characters, settings });
         }
-    };
+    }, [room?.id, socket]);
 
-    const selectCharacter = (character) => {
-        if (room) {
+    const selectCharacter = React.useCallback((character) => {
+        if (room && socket) {
             socket.emit('select_character', { roomId: room.id, character });
         }
-    };
+    }, [room?.id, socket]);
 
-    const leaveRoom = () => {
-        if (room) {
+    const leaveRoom = React.useCallback(() => {
+        if (room && socket) {
             socket.emit('leave_room', { roomId: room.id });
             setRoom(null);
         }
-    };
+    }, [room?.id, socket]);
+
+    useEffect(() => {
+        if (room?.gameState === 'PLAYING') {
+            console.log("🎮 Turn changed to index:", room.turn);
+            playPing();
+        }
+    }, [room?.turn, playPing, room?.gameState]);
 
     return (
         <GameContext.Provider value={{
@@ -134,9 +199,12 @@ export const GameProvider = ({ children }) => {
             startGame,
             selectCharacter,
             sendMessage,
+            sendTypingStatus,
+            opponentTyping,
             makeGuess,
             restartGame,
             endTurn,
+            updateEliminatedCount,
             leaveRoom
         }}>
             {children}

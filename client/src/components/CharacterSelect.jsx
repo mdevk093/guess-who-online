@@ -7,6 +7,8 @@ const CharacterSelect = () => {
     const [presets, setPresets] = useState({});
     const [localCharacters, setLocalCharacters] = useState([]);
     const [selectedId, setSelectedId] = useState(null);
+    const [timerEnabled, setTimerEnabled] = useState(false);
+    const [timerLimit, setTimerLimit] = useState(2); // Default 2 minutes
     const isHost = room.players.find(p => p.id === socket.id)?.isHost;
 
     useEffect(() => {
@@ -43,7 +45,9 @@ const CharacterSelect = () => {
 
     const handleStart = () => {
         if (localCharacters.length > 0) {
-            startGame(localCharacters);
+            startGame(localCharacters, {
+                timerLimit: timerEnabled ? timerLimit : null
+            });
         }
     };
 
@@ -87,12 +91,39 @@ const CharacterSelect = () => {
                             </select>
                         </div>
 
+                        {/* Turn Timer Configuration */}
+                        <div className="hidden sm:flex flex-col items-end border-l border-slate-100 pl-4 sm:pl-6 ml-2 sm:ml-4">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Turn Timer</span>
+                            <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200">
+                                <button
+                                    onClick={() => setTimerEnabled(!timerEnabled)}
+                                    className={`px-3 py-1 rounded-lg text-[10px] font-black tracking-widest transition-all ${timerEnabled ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                                >
+                                    {timerEnabled ? "ON" : "OFF"}
+                                </button>
+                                {timerEnabled && (
+                                    <div className="flex items-center gap-1 pr-1 border-l border-slate-200 ml-1 pl-1">
+                                        {[1, 2, 3, 4, 5].map(min => (
+                                            <button
+                                                key={min}
+                                                onClick={() => setTimerLimit(min)}
+                                                className={`w-6 h-6 flex items-center justify-center rounded-lg text-[10px] font-black transition-all ${timerLimit === min ? 'bg-slate-900 text-white' : 'text-slate-400 hover:text-slate-600'}`}
+                                            >
+                                                {min}
+                                            </button>
+                                        ))}
+                                        <span className="text-[7px] font-black text-slate-400 uppercase ml-1">min</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
                         <button
                             onClick={handleStart}
                             disabled={room.players.length < 2 || localCharacters.length === 0}
                             className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-30 px-4 sm:px-8 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-black text-white transition-all transform hover:scale-[1.02] shadow-xl shadow-indigo-200 active:scale-95 text-xs sm:text-base"
                         >
-                            {room.players.length < 2 ? "Waiting..." : localCharacters.length === 0 ? "Loading..." : "Start Match"}
+                            {room.players.length < 2 ? "Waiting..." : localCharacters.length === 0 ? "Loading..." : "Lock In Game Mode"}
                         </button>
                         <button
                             onClick={leaveRoom}

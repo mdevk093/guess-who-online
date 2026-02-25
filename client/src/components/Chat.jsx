@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../context/GameContext';
 
 const Chat = () => {
-    const { room, sendMessage, socket } = useGame();
+    const { room, sendMessage, socket, sendTypingStatus, opponentTyping } = useGame();
     const [input, setInput] = useState('');
+    const [isTyping, setIsTyping] = useState(false);
     const chatEndRef = useRef(null);
+    const typingTimeoutRef = useRef(null);
 
     const scrollToBottom = () => {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -19,8 +21,36 @@ const Chat = () => {
         if (input.trim()) {
             sendMessage(input);
             setInput('');
+            // Stop typing immediately when sending
+            if (isTyping) {
+                setIsTyping(false);
+                sendTypingStatus(false);
+            }
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
         }
     };
+
+    const handleInputChange = (e) => {
+        setInput(e.target.value);
+
+        if (!isTyping) {
+            setIsTyping(true);
+            sendTypingStatus(true);
+        }
+
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
+        typingTimeoutRef.current = setTimeout(() => {
+            setIsTyping(false);
+            sendTypingStatus(false);
+        }, 5000);
+    };
+
+    useEffect(() => {
+        return () => {
+            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        };
+    }, []);
 
     return (
         <div className="flex flex-col h-full bg-slate-50/50 rounded-2xl sm:rounded-[2rem] border border-slate-100 overflow-hidden shadow-sm">
@@ -66,6 +96,19 @@ const Chat = () => {
                         </div>
                     );
                 })}
+
+                {opponentTyping && (
+                    <div className="flex flex-col items-start animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <div className="bg-white px-4 py-3 rounded-2xl rounded-tl-none border border-slate-100 shadow-sm shadow-slate-100 flex items-center gap-2">
+                            <div className="flex gap-1">
+                                <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                                <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                                <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" />
+                            </div>
+                            <span className="text-[11px] font-bold text-slate-400">Opponent is typing...</span>
+                        </div>
+                    </div>
+                )}
                 <div ref={chatEndRef} />
             </div>
 
@@ -74,7 +117,7 @@ const Chat = () => {
                     <input
                         type="text"
                         value={input}
-                        onChange={(e) => setInput(e.target.value)}
+                        onChange={handleInputChange}
                         placeholder="Message..."
                         className="w-full bg-slate-50 border border-slate-100 rounded-xl sm:rounded-2xl pl-4 pr-10 py-3 sm:py-4 text-[13px] sm:text-sm font-medium focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all placeholder:text-slate-300"
                     />
