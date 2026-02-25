@@ -62,7 +62,7 @@ const CharacterSelect = () => {
     return (
         <div className="flex flex-col h-screen bg-slate-50 text-slate-900 overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between p-6 bg-white border-b border-slate-100 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-6 bg-white border-b border-slate-100 shadow-sm gap-4">
                 <div className="flex items-center gap-4">
                     <div className="w-8 h-8 sm:w-10 sm:h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100">
                         <span className="text-white text-lg sm:text-xl font-black italic">?</span>
@@ -74,27 +74,28 @@ const CharacterSelect = () => {
                 </div>
 
                 {isHost && room.gameState === 'LOBBY' && (
-                    <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-4 animate-in fade-in slide-in-from-top-4">
-                        <div className="hidden sm:flex flex-col items-end">
+                    <div className="flex flex-wrap items-center justify-start sm:justify-end gap-3 sm:gap-4 animate-in fade-in slide-in-from-top-4 w-full sm:w-auto">
+                        <div className="flex flex-col items-start sm:items-center flex-1 sm:flex-none">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Select Theme</span>
                             <select
                                 value={mode}
                                 onChange={(e) => setMode(e.target.value)}
-                                className="bg-slate-50 text-slate-700 px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-4 focus:ring-indigo-100 font-bold transition-all text-sm"
+                                className="w-full sm:w-auto bg-slate-50 text-slate-700 px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-4 focus:ring-indigo-100 font-bold transition-all text-sm"
                             >
                                 <option value="default">Default</option>
                                 <option value="marvel_dc">Marvel & DC</option>
                                 <option value="youtubers">YouTubers</option>
                                 <option value="fruits_veg">Fruits & Veg</option>
                                 <option value="anime">Anime</option>
+                                <option value="countries">Countries</option>
                                 <option value="custom">Custom</option>
                             </select>
                         </div>
 
                         {/* Turn Timer Configuration */}
-                        <div className="hidden sm:flex flex-col items-end border-l border-slate-100 pl-4 sm:pl-6 ml-2 sm:ml-4">
+                        <div className="flex flex-col items-start sm:items-center sm:border-l sm:border-slate-100 sm:pl-4 sm:pl-6 flex-1 sm:flex-none">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Turn Timer</span>
-                            <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200">
+                            <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200 w-full sm:w-auto justify-center sm:justify-start">
                                 <button
                                     onClick={() => setTimerEnabled(!timerEnabled)}
                                     className={`px-3 py-1 rounded-lg text-[10px] font-black tracking-widest transition-all ${timerEnabled ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
@@ -118,20 +119,22 @@ const CharacterSelect = () => {
                             </div>
                         </div>
 
-                        <button
-                            onClick={handleStart}
-                            disabled={room.players.length < 2 || localCharacters.length === 0}
-                            className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-30 px-4 sm:px-8 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-black text-white transition-all transform hover:scale-[1.02] shadow-xl shadow-indigo-200 active:scale-95 text-xs sm:text-base"
-                        >
-                            {room.players.length < 2 ? "Waiting..." : localCharacters.length === 0 ? "Loading..." : "Lock In Game Mode"}
-                        </button>
-                        <button
-                            onClick={leaveRoom}
-                            className="p-2.5 sm:p-3 bg-rose-50 border border-rose-100 rounded-xl sm:rounded-2xl text-rose-600 hover:bg-rose-600 hover:text-white transition-all shadow-sm"
-                            title="Quit Game"
-                        >
-                            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                        </button>
+                        <div className="flex w-full sm:w-auto gap-2">
+                            <button
+                                onClick={handleStart}
+                                disabled={localCharacters.length === 0}
+                                className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 disabled:opacity-30 px-4 sm:px-8 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-black text-white transition-all transform hover:scale-[1.02] shadow-xl shadow-indigo-200 active:scale-95 text-xs sm:text-base"
+                            >
+                                {localCharacters.length === 0 ? "Loading..." : "Lock In Game Mode"}
+                            </button>
+                            <button
+                                onClick={leaveRoom}
+                                className="p-2.5 sm:p-3 bg-rose-50 border border-rose-100 rounded-xl sm:rounded-2xl text-rose-600 hover:bg-rose-600 hover:text-white transition-all shadow-sm"
+                                title="Quit Game"
+                            >
+                                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                            </button>
+                        </div>
                     </div>
                 )}
 
@@ -142,6 +145,35 @@ const CharacterSelect = () => {
                     </div>
                 )}
             </div>
+
+            {/* Custom Mode Upload Area */}
+            {isHost && mode === 'custom' && room.gameState === 'LOBBY' && (
+                <div className="bg-indigo-50 p-6 border-b border-indigo-100 animate-in slide-in-from-top-4 duration-500">
+                    <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+                        <div className="flex-1">
+                            <h3 className="text-lg font-black text-indigo-900 mb-1">Custom Character Mode</h3>
+                            <p className="text-sm text-indigo-700/70 font-medium">Upload exactly 16, 20, or 24 pictures of your friends, family, or any characters you want!</p>
+                            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-2 flex items-center gap-2">
+                                <span className="bg-white px-2 py-0.5 rounded-full border border-indigo-100">Pro Tip</span>
+                                Portrait (4:5) or Square photos work best!
+                            </p>
+                        </div>
+                        <label className="relative group cursor-pointer">
+                            <input
+                                type="file"
+                                multiple
+                                accept="image/*"
+                                onChange={handleFileUpload}
+                                className="hidden"
+                            />
+                            <div className="bg-white text-indigo-600 px-8 py-4 rounded-2xl font-black shadow-xl shadow-indigo-200/50 border-2 border-dashed border-indigo-200 group-hover:border-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all flex items-center gap-3">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                <span>{localCharacters.length > 0 ? `${localCharacters.length} Photos Selected` : "Upload Custom Photos"}</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            )}
 
             <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
                 {/* Main Content */}

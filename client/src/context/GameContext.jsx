@@ -15,8 +15,8 @@ export const GameProvider = ({ children }) => {
     const [opponentTyping, setOpponentTyping] = useState(false);
     const audioContextRef = React.useRef(null);
 
-    // Audio for turn changes (Programmatic Ding)
-    const playPing = React.useCallback(() => {
+    // Audio helper for programmatic sounds
+    const playSound = React.useCallback((freq, duration, type = 'sine', volume = 0.5) => {
         try {
             if (!audioContextRef.current) {
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -29,26 +29,34 @@ export const GameProvider = ({ children }) => {
                 context.resume();
             }
 
-            const oscillator = context.createOscillator();
-            const gainNode = context.createGain();
+            const osc = context.createOscillator();
+            const gain = context.createGain();
 
-            oscillator.connect(gainNode);
-            gainNode.connect(context.destination);
+            osc.connect(gain);
+            gain.connect(context.destination);
 
-            oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(880, context.currentTime); // A5 note
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, context.currentTime);
 
-            gainNode.gain.setValueAtTime(0, context.currentTime);
-            gainNode.gain.linearRampToValueAtTime(0.5, context.currentTime + 0.02);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.4);
+            gain.gain.setValueAtTime(0, context.currentTime);
+            gain.gain.linearRampToValueAtTime(volume, context.currentTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + duration);
 
-            oscillator.start();
-            oscillator.stop(context.currentTime + 0.4);
-            console.log("🔊 Turn notification played");
+            osc.start();
+            osc.stop(context.currentTime + duration);
         } catch (err) {
             console.error("Audio playback error:", err);
         }
     }, []);
+
+    const playPing = React.useCallback(() => {
+        playSound(880, 0.4, 'sine', 0.5); // A5 note
+        console.log("🔊 Turn notification played");
+    }, [playSound]);
+
+    const playTick = React.useCallback(() => {
+        playSound(1200, 0.05, 'sine', 0.1); // Short high-pitched tick
+    }, [playSound]);
 
     const sendMessage = React.useCallback((message) => {
         if (room && socket) {
@@ -137,9 +145,6 @@ export const GameProvider = ({ children }) => {
 
         newSocket.on('guess_result', ({ isCorrect, characterId }) => {
             if (!isCorrect) {
-                // We should probably handle this in the component level, 
-                // but we could also broadcast a local event or error.
-                // For now, let's just make sure the component knows.
                 window.dispatchEvent(new CustomEvent('wrong_guess', { detail: { characterId } }));
             }
         });
@@ -204,6 +209,7 @@ export const GameProvider = ({ children }) => {
             makeGuess,
             restartGame,
             endTurn,
+            playTick,
             updateEliminatedCount,
             leaveRoom
         }}>

@@ -7,7 +7,8 @@ export default defineConfig({
   server: {
     proxy: {
       '/presets': 'http://localhost:3001',
-      '/defaultCharacters.json': 'http://localhost:3001'
+      '/defaultCharacters.json': 'http://localhost:3001',
+      '/public': 'http://localhost:3001'
     }
   }
 })

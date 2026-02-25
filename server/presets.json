@@ -326,5 +326,127 @@
             "name": "Light Yagami",
             "image": "https://api.dicebear.com/7.x/pixel-art/svg?seed=Light"
         }
+    ],
+    "countries": [
+        {
+            "id": 65,
+            "name": "Argentina",
+            "image": "/public/flags/Argentina.png"
+        },
+        {
+            "id": 66,
+            "name": "Australia",
+            "image": "/public/flags/Australia.png"
+        },
+        {
+            "id": 67,
+            "name": "Brazil",
+            "image": "/public/flags/Brazil.png"
+        },
+        {
+            "id": 68,
+            "name": "Canada",
+            "image": "/public/flags/Canada.png"
+        },
+        {
+            "id": 69,
+            "name": "China",
+            "image": "/public/flags/China.png"
+        },
+        {
+            "id": 70,
+            "name": "France",
+            "image": "/public/flags/France.png"
+        },
+        {
+            "id": 71,
+            "name": "Germany",
+            "image": "/public/flags/Germany.png"
+        },
+        {
+            "id": 72,
+            "name": "Greece",
+            "image": "/public/flags/Greece.png"
+        },
+        {
+            "id": 73,
+            "name": "India",
+            "image": "/public/flags/India.png"
+        },
+        {
+            "id": 74,
+            "name": "Israel",
+            "image": "/public/flags/Israel.png"
+        },
+        {
+            "id": 75,
+            "name": "Jamaica",
+            "image": "/public/flags/Jamaica.png"
+        },
+        {
+            "id": 76,
+            "name": "Japan",
+            "image": "/public/flags/Japan.png"
+        },
+        {
+            "id": 77,
+            "name": "Kenya",
+            "image": "/public/flags/Kenya.png"
+        },
+        {
+            "id": 78,
+            "name": "Mexico",
+            "image": "/public/flags/Mexico.png"
+        },
+        {
+            "id": 79,
+            "name": "Morocco",
+            "image": "/public/flags/Morocco.png"
+        },
+        {
+            "id": 80,
+            "name": "Nepal",
+            "image": "/public/flags/Nepal.png"
+        },
+        {
+            "id": 81,
+            "name": "Nigeria",
+            "image": "/public/flags/Nigeria.png"
+        },
+        {
+            "id": 82,
+            "name": "South Africa",
+            "image": "/public/flags/South_Africa.png"
+        },
+        {
+            "id": 83,
+            "name": "South Korea",
+            "image": "/public/flags/South_Korea.png"
+        },
+        {
+            "id": 84,
+            "name": "Sweden",
+            "image": "/public/flags/Sweden.png"
+        },
+        {
+            "id": 85,
+            "name": "Switzerland",
+            "image": "/public/flags/Switzerland.png"
+        },
+        {
+            "id": 86,
+            "name": "USA",
+            "image": "/public/flags/USA.png"
+        },
+        {
+            "id": 87,
+            "name": "United Kingdom",
+            "image": "/public/flags/United_Kingdom.png"
+        },
+        {
+            "id": 88,
+            "name": "Vietnam",
+            "image": "/public/flags/Vietnam.png"
+        }
     ]
 }

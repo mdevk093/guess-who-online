@@ -3,12 +3,13 @@ import { useGame } from '../context/GameContext';
 import Chat from './Chat';
 
 const GameBoard = () => {
-    const { room, socket, makeGuess, restartGame, endTurn, updateEliminatedCount, sendMessage, leaveRoom, opponentTyping } = useGame();
+    const { room, socket, makeGuess, restartGame, endTurn, playTick, updateEliminatedCount, sendMessage, leaveRoom, opponentTyping } = useGame();
     const [eliminatedIds, setEliminatedIds] = useState([]);
     const [guessModalOpen, setGuessModalOpen] = useState(false);
     const [mobileTab, setMobileTab] = useState('board'); // 'board' or 'chat'
     const [unreadMessages, setUnreadMessages] = useState(false);
     const [timeLeft, setTimeLeft] = useState(null);
+    const lastTickRef = React.useRef(null);
 
     const me = room.players.find(p => p.id === socket.id);
     const myTurn = room.players[room.turn].id === socket.id;
@@ -79,7 +80,16 @@ const GameBoard = () => {
         const updateTimer = () => {
             const elapsed = Date.now() - room.turnStartTime;
             const remaining = Math.max(0, timerLimitMs - elapsed);
-            setTimeLeft(Math.ceil(remaining / 1000));
+            const seconds = Math.ceil(remaining / 1000);
+            setTimeLeft(seconds);
+
+            // Ticking sound for final 5 seconds
+            if (seconds > 0 && seconds <= 5 && seconds !== lastTickRef.current) {
+                playTick();
+                lastTickRef.current = seconds;
+            } else if (seconds <= 0 || seconds > 5) {
+                lastTickRef.current = null;
+            }
 
             // Auto-end turn if timer hits zero and it's my turn
             if (remaining <= 0 && myTurn && !isGameOver) {
@@ -154,7 +164,7 @@ const GameBoard = () => {
             <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
                 {/* Board */}
                 <div className={`flex-1 overflow-y-auto p-3 sm:p-8 bg-slate-50/50 transition-all duration-300 ${mobileTab === 'chat' ? 'hidden sm:block' : 'block'}`}>
-                    <div className="grid grid-cols-5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-1.5 sm:gap-6 pb-20">
+                    <div className="grid grid-cols-5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-1.5 sm:gap-6 pb-24 sm:pb-8">
                         {(room.characters && room.characters.length > 0 ? room.characters : []).map((char) => (
                             <div
                                 key={char.id}
@@ -188,14 +198,14 @@ const GameBoard = () => {
 
                 {/* Sidebar */}
                 <div className={`w-full lg:w-96 flex flex-col gap-4 sm:gap-6 p-4 sm:p-8 overflow-y-auto bg-white border-l border-slate-100 transition-all duration-300 ${mobileTab === 'board' ? 'hidden sm:flex' : 'flex'}`}>
-                    {/* Your Character Card */}
-                    <div className="bg-slate-50/50 rounded-3xl sm:rounded-[2.5rem] p-4 sm:p-6 border border-slate-100 shadow-sm flex items-center gap-4 sm:gap-6">
-                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl overflow-hidden border-4 border-white shadow-xl ring-1 ring-slate-900/10">
+                    {/* Your Character Card (Desktop Only in sidebar) */}
+                    <div className="hidden lg:flex bg-slate-50/50 rounded-[2.5rem] p-6 border border-slate-100 shadow-sm items-center gap-6">
+                        <div className="w-20 h-20 rounded-3xl overflow-hidden border-4 border-white shadow-xl ring-1 ring-slate-900/10">
                             <img src={me?.selectedCharacter?.image} alt="You" className="w-full h-full object-cover" />
                         </div>
                         <div>
-                            <span className="text-[8px] sm:text-[10px] font-black text-indigo-500 uppercase tracking-widest block mb-0.5 sm:mb-1">You selected</span>
-                            <h2 className="text-lg sm:text-2xl font-black text-slate-800 tracking-tight leading-tight">{me?.selectedCharacter?.name}</h2>
+                            <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest block mb-1">You selected</span>
+                            <h2 className="text-2xl font-black text-slate-800 tracking-tight leading-tight">{me?.selectedCharacter?.name}</h2>
                         </div>
                     </div>
 
@@ -222,45 +232,65 @@ const GameBoard = () => {
                         <Chat />
                     </div>
 
-                    {/* Action Buttons (Moved from Header) */}
-                    <div className="flex gap-2">
+                    {/* Action Buttons (Desktop Only) */}
+                    <div className="hidden lg:flex gap-2">
                         <button
                             onClick={() => setGuessModalOpen(true)}
                             disabled={!myTurn || isGameOver}
-                            className="flex-1 bg-rose-600 hover:bg-rose-700 disabled:opacity-30 py-3 sm:py-4 rounded-2xl sm:rounded-[2rem] font-black text-xs sm:text-sm text-white shadow-xl shadow-rose-100 transition-all active:scale-95"
+                            className="flex-1 bg-rose-600 hover:bg-rose-700 disabled:opacity-30 py-4 rounded-[2rem] font-black text-sm text-white shadow-xl shadow-rose-100 transition-all active:scale-95"
                         >
                             Guess
                         </button>
                         <button
                             onClick={endTurn}
                             disabled={!myTurn || isGameOver}
-                            className="flex-1 bg-slate-900 hover:bg-slate-800 disabled:opacity-30 py-3 sm:py-4 rounded-2xl sm:rounded-[2rem] font-black text-xs sm:text-sm text-white shadow-xl shadow-slate-200 transition-all active:scale-95"
+                            className="flex-1 bg-slate-900 hover:bg-slate-800 disabled:opacity-30 py-4 rounded-[2rem] font-black text-sm text-white shadow-xl shadow-slate-200 transition-all active:scale-95"
                         >
                             End Turn
                         </button>
                     </div>
                 </div>
 
-                {/* Mobile Navigation Bar */}
-                <div className="sm:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-100 px-6 flex items-center justify-around z-50">
+                {/* Template A: Mobile Action Bar */}
+                <div className="sm:hidden fixed bottom-0 left-0 right-0 h-20 bg-white border-t border-slate-100 px-4 flex items-center justify-between z-50 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
+                    {/* Left: Your Character */}
+                    <div className="w-12 h-12 rounded-xl overflow-hidden border-2 border-indigo-100 shadow-sm shrink-0">
+                        <img src={me?.selectedCharacter?.image} alt="Me" className="w-full h-full object-cover" />
+                    </div>
+
+                    {/* Center: Main Actions */}
+                    <div className="flex flex-1 gap-2 px-3">
+                        <button
+                            onClick={() => setGuessModalOpen(true)}
+                            disabled={!myTurn || isGameOver}
+                            className="flex-1 bg-rose-600 hover:bg-rose-700 disabled:opacity-30 h-12 rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-lg shadow-rose-100 transition-all active:scale-95"
+                        >
+                            Guess
+                        </button>
+                        <button
+                            onClick={endTurn}
+                            disabled={!myTurn || isGameOver}
+                            className="flex-1 bg-slate-900 hover:bg-slate-800 disabled:opacity-30 h-12 rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-lg transition-all active:scale-95"
+                        >
+                            End
+                        </button>
+                    </div>
+
+                    {/* Right: Chat Toggle */}
                     <button
-                        onClick={() => setMobileTab('board')}
-                        className={`flex flex-col items-center gap-1 transition-all ${mobileTab === 'board' ? 'text-indigo-600' : 'text-slate-400'}`}
+                        onClick={() => setMobileTab(mobileTab === 'board' ? 'chat' : 'board')}
+                        className={`relative w-12 h-12 flex items-center justify-center rounded-xl transition-all ${mobileTab === 'chat' ? 'bg-indigo-600 text-white shadow-indigo-100' : 'bg-slate-50 text-slate-400'}`}
                     >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-                        <span className="text-[10px] font-black uppercase tracking-widest">Board</span>
-                    </button>
-                    <button
-                        onClick={() => setMobileTab('chat')}
-                        className={`flex flex-col items-center gap-1 transition-all ${mobileTab === 'chat' ? 'text-indigo-600' : 'text-slate-400'}`}
-                    >
-                        <div className="relative">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                            {(unreadMessages || (opponentTyping && mobileTab !== 'chat')) && (
-                                <div className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white animate-pulse ${opponentTyping ? 'bg-indigo-500' : 'bg-rose-500'}`} />
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {mobileTab === 'chat' ? (
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16m-7 6h7" />
+                            ) : (
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                             )}
-                        </div>
-                        <span className="text-[10px] font-black uppercase tracking-widest">Chat</span>
+                        </svg>
+                        {(unreadMessages || (opponentTyping && mobileTab !== 'chat')) && (
+                            <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white animate-pulse ${opponentTyping ? 'bg-indigo-500' : 'bg-rose-500'}`} />
+                        )}
                     </button>
                 </div>
             </div>

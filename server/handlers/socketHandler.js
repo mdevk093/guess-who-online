@@ -165,6 +165,17 @@ function handleSocketEvents(io, socket) {
             } else {
                 // Wrong guess - notify guesser specifically to eliminate, and switch turn
                 socket.emit('guess_result', { isCorrect: false, characterId: character.id });
+
+                // Add chat notification for everyone
+                const guesser = room.players.find(p => p.id === socket.id);
+                const msgData = {
+                    type: 'DIVIDER',
+                    text: `${guesser?.name} has guessed ${character.name}`,
+                    timestamp: new Date().toLocaleTimeString()
+                };
+                room.chat.push(msgData);
+                io.to(roomId).emit('receive_message', msgData);
+
                 room.turn = (room.turn + 1) % room.players.length;
                 room.turnStartTime = Date.now();
                 io.to(roomId).emit('room_updated', room);
