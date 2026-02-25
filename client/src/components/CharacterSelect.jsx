@@ -177,15 +177,15 @@ const CharacterSelect = () => {
 
             <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
                 {/* Main Content */}
-                <div className="flex-1 p-4 sm:p-8 overflow-y-auto">
+                {/* Main Content Area */}
+                <div className="flex-1 p-4 sm:p-8 overflow-y-auto pb-32 sm:pb-8">
                     <div className="mb-6 sm:mb-8">
                         <h3 className="text-xl sm:text-2xl font-black text-slate-900 mb-2">
-                            {room.gameState === 'SELECTING' ? "Choose Your Character" : "Waiting for host..."}
+                            Choose Your Character
                         </h3>
-                        <p className="text-sm text-slate-400 font-medium">Your opponent needs to guess this!</p>
                     </div>
 
-                    <div className="grid grid-cols-5 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5 sm:gap-6 pb-12 sm:pb-0">
+                    <div className="grid grid-cols-5 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5 sm:gap-6">
                         {charactersToDisplay.map(char => (
                             <div
                                 key={char.id}
@@ -200,13 +200,11 @@ const CharacterSelect = () => {
                                     <img
                                         src={char.image}
                                         alt={char.name}
-                                        className={`w-full h-full object-cover rounded-md sm:rounded-2xl transition-all duration-300 ${selectedId === char.id ? 'scale-110' : 'group-hover:scale-105'
-                                            }`}
+                                        className="w-full h-full object-cover rounded-md sm:rounded-2xl"
                                     />
                                 </div>
-                                <div className={`p-1 sm:p-4 text-center border-t border-slate-50 transition-colors ${selectedId === char.id ? 'bg-indigo-600' : 'bg-white'
-                                    }`}>
-                                    <p className={`text-[7px] sm:text-sm font-black truncate ${selectedId === char.id ? 'text-white' : 'text-slate-700'
+                                <div className="p-1 sm:p-3 bg-white rounded-b-lg sm:rounded-b-3xl border-t border-slate-50 text-center">
+                                    <p className={`text-[7px] sm:text-sm font-black truncate ${selectedId === char.id ? 'text-indigo-600' : 'text-slate-700'
                                         }`}>
                                         {char.name}
                                     </p>
@@ -223,8 +221,8 @@ const CharacterSelect = () => {
                 </div>
 
                 {/* Sidebar - Players */}
-                <div className="w-full lg:w-80 p-4 sm:p-8 bg-white border-t lg:border-t-0 lg:border-l border-slate-100 flex flex-col gap-6 sm:gap-8 overflow-y-auto">
-                    <div className="hidden sm:block">
+                <div className="hidden lg:flex w-80 p-8 bg-white border-l border-slate-100 flex-col gap-8 overflow-y-auto">
+                    <div>
                         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">Players Connected</h3>
                         <div className="space-y-3">
                             {room.players.map(p => (
@@ -239,12 +237,12 @@ const CharacterSelect = () => {
                         </div>
                     </div>
 
-                    <div className="mt-auto p-5 sm:p-6 bg-slate-900 rounded-3xl sm:rounded-[2rem] text-white shadow-2xl relative overflow-hidden group">
+                    <div className="mt-auto p-6 bg-slate-900 rounded-[2rem] text-white shadow-2xl relative overflow-hidden group">
                         <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all" />
-                        <h4 className="text-lg sm:text-xl font-black mb-1 sm:mb-2 relative z-10 leading-tight">
+                        <h4 className="text-xl font-black mb-2 relative z-10 leading-tight">
                             {me?.isReady ? "Ready to Play!" : "Finalize Selection"}
                         </h4>
-                        <p className="text-white/60 text-xs sm:text-sm mb-4 sm:mb-6 relative z-10 leading-relaxed font-medium">
+                        <p className="text-white/60 text-sm mb-6 relative z-10 leading-relaxed font-medium">
                             {me?.isReady
                                 ? "Waiting for opponent..."
                                 : "Pick and lock it in."}
@@ -252,9 +250,22 @@ const CharacterSelect = () => {
                         <button
                             disabled={!selectedId || me?.isReady || room.gameState !== 'SELECTING'}
                             onClick={() => selectCharacter(charactersToDisplay.find(c => c.id === selectedId))}
-                            className="w-full py-3.5 sm:py-4 bg-white text-slate-900 rounded-xl sm:rounded-2xl font-bold hover:bg-indigo-50 transition-all disabled:opacity-30 disabled:grayscale active:scale-95 shadow-lg relative z-10 text-sm sm:text-base"
+                            className="w-full py-4 bg-white text-slate-900 rounded-2xl font-bold hover:bg-indigo-50 transition-all disabled:opacity-30 disabled:grayscale active:scale-95 shadow-lg relative z-10"
                         >
                             {me?.isReady ? "Locked In" : "Lock Character"}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Mobile Sticky Footer */}
+                <div className="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-xl border-t border-slate-100 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] z-50 animate-in slide-in-from-bottom-full duration-500">
+                    <div className="flex items-center justify-center max-w-lg mx-auto">
+                        <button
+                            disabled={!selectedId || me?.isReady || room.gameState !== 'SELECTING'}
+                            onClick={() => selectCharacter(charactersToDisplay.find(c => c.id === selectedId))}
+                            className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-30 w-full py-4 rounded-xl font-black text-white text-sm uppercase tracking-[0.2em] transition-all active:scale-95 shadow-lg shadow-indigo-100"
+                        >
+                            {me?.isReady ? "LOCKED" : "LOCK PLAYER"}
                         </button>
                     </div>
                 </div>
