@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
+import { supabase } from '../supabaseClient';
 
 const CharacterSelect = () => {
-    const { room, playerName, startGame, selectCharacter, socket, leaveRoom } = useGame();
+    const { room, playerName, startGame, selectCharacter, socket, leaveRoom, user } = useGame();
     const [mode, setMode] = useState('default'); // 'default', 'custom', or one of the preset keys
     const [presets, setPresets] = useState({});
     const [localCharacters, setLocalCharacters] = useState([]);
     const [selectedId, setSelectedId] = useState(null);
     const [timerEnabled, setTimerEnabled] = useState(false);
     const [timerLimit, setTimerLimit] = useState(2); // Default 2 minutes
+    const [guessLimit, setGuessLimit] = useState(null); // null, 1, or 3
+    const [uploading, setUploading] = useState(false);
     const isHost = room.players.find(p => p.id === socket.id)?.isHost;
 
     useEffect(() => {
@@ -16,6 +19,18 @@ const CharacterSelect = () => {
         fetch('/presets')
             .then(res => res.json())
             .then(data => setPresets(data));
+
+        // Load cached custom characters
+        const cached = localStorage.getItem('custom_characters');
+        if (cached) {
+            try {
+                const parsed = JSON.parse(cached);
+                setLocalCharacters(parsed);
+                setMode('custom');
+            } catch (e) {
+                console.error("Failed to load cached characters", e);
+            }
+        }
     }, []);
 
     useEffect(() => {
@@ -23,30 +38,60 @@ const CharacterSelect = () => {
             fetch('/defaultCharacters.json')
                 .then(res => res.json())
                 .then(data => setLocalCharacters(data));
+        } else if (mode === 'custom') {
+            const cached = localStorage.getItem('custom_characters');
+            if (cached) setLocalCharacters(JSON.parse(cached));
         } else if (presets[mode]) {
             setLocalCharacters(presets[mode]);
         }
     }, [mode, presets]);
 
-    const handleFileUpload = (e) => {
+    const handleFileUpload = async (e) => {
         const files = Array.from(e.target.files);
         if (files.length < 16 || files.length > 24) {
             alert("Please upload between 16 and 24 pictures.");
             return;
         }
 
-        const customChars = files.map((file, index) => ({
-            id: index + 1,
-            name: `Person ${index + 1}`,
-            image: URL.createObjectURL(file)
-        }));
-        setLocalCharacters(customChars);
+        setUploading(true);
+        try {
+            const uploadedChars = await Promise.all(files.map(async (file, index) => {
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${user?.id || 'anon'}/${Date.now()}-${index}.${fileExt}`;
+                const filePath = `characters/${fileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('character-images')
+                    .upload(filePath, file);
+
+                if (uploadError) throw uploadError;
+
+                const { data: { publicUrl } } = supabase.storage
+                    .from('character-images')
+                    .getPublicUrl(filePath);
+
+                return {
+                    id: index + 1,
+                    name: `Person ${index + 1}`,
+                    image: publicUrl
+                };
+            }));
+
+            setLocalCharacters(uploadedChars);
+            localStorage.setItem('custom_characters', JSON.stringify(uploadedChars));
+        } catch (error) {
+            console.error("Upload error:", error);
+            alert("Failed to upload images. Check console for details.");
+        } finally {
+            setUploading(false);
+        }
     };
 
     const handleStart = () => {
         if (localCharacters.length > 0) {
             startGame(localCharacters, {
-                timerLimit: timerEnabled ? timerLimit : null
+                timerLimit: timerEnabled ? timerLimit : null,
+                guessLimit: guessLimit
             });
         }
     };
@@ -119,6 +164,29 @@ const CharacterSelect = () => {
                             </div>
                         </div>
 
+                        {/* Guess Limit Configuration */}
+                        <div className="flex flex-col items-start sm:items-center sm:border-l sm:border-slate-100 sm:pl-4 sm:pl-6 flex-1 sm:flex-none">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Guess Limit</span>
+                            <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200 w-full sm:w-auto justify-center sm:justify-start">
+                                <button
+                                    onClick={() => setGuessLimit(null)}
+                                    className={`px-3 py-1 rounded-lg text-[10px] font-black tracking-widest transition-all ${guessLimit === null ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                                >
+                                    ∞
+                                </button>
+                                {[1, 3].map(limit => (
+                                    <button
+                                        key={limit}
+                                        onClick={() => setGuessLimit(limit)}
+                                        className={`w-10 h-6 flex items-center justify-center rounded-lg text-[10px] font-black transition-all ${guessLimit === limit ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                                    >
+                                        {limit}
+                                    </button>
+                                ))}
+                                <span className="text-[7px] font-black text-slate-400 uppercase ml-1 pr-2">Total</span>
+                            </div>
+                        </div>
+
                         <div className="flex w-full sm:w-auto gap-2">
                             <button
                                 onClick={handleStart}
@@ -138,6 +206,22 @@ const CharacterSelect = () => {
                     </div>
                 )}
 
+                {room.gameState === 'LOBBY' && !isHost && (
+                    <div className="flex flex-col sm:flex-row items-center gap-4">
+                        <div className="flex items-center gap-3 bg-slate-100 px-4 py-2 rounded-xl border border-slate-200 animate-in zoom-in">
+                            <div className="w-2 h-2 bg-slate-400 rounded-full animate-pulse" />
+                            <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Host is picking game mode...</span>
+                        </div>
+                        <button
+                            onClick={leaveRoom}
+                            className="p-2.5 sm:p-3 bg-rose-50 border border-rose-100 rounded-xl sm:rounded-2xl text-rose-600 hover:bg-rose-600 hover:text-white transition-all shadow-sm active:scale-95"
+                            title="Leave Room"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                        </button>
+                    </div>
+                )}
+
                 {room.gameState === 'SELECTING' && (
                     <div className="flex items-center gap-3 bg-indigo-50 px-4 py-2 rounded-xl border border-indigo-100 animate-in zoom-in">
                         <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse" />
@@ -147,33 +231,35 @@ const CharacterSelect = () => {
             </div>
 
             {/* Custom Mode Upload Area */}
-            {isHost && mode === 'custom' && room.gameState === 'LOBBY' && (
-                <div className="bg-indigo-50 p-6 border-b border-indigo-100 animate-in slide-in-from-top-4 duration-500">
-                    <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-                        <div className="flex-1">
-                            <h3 className="text-lg font-black text-indigo-900 mb-1">Custom Character Mode</h3>
-                            <p className="text-sm text-indigo-700/70 font-medium">Upload exactly 16, 20, or 24 pictures of your friends, family, or any characters you want!</p>
-                            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-2 flex items-center gap-2">
-                                <span className="bg-white px-2 py-0.5 rounded-full border border-indigo-100">Pro Tip</span>
-                                Portrait (4:5) or Square photos work best!
-                            </p>
-                        </div>
-                        <label className="relative group cursor-pointer">
-                            <input
-                                type="file"
-                                multiple
-                                accept="image/*"
-                                onChange={handleFileUpload}
-                                className="hidden"
-                            />
-                            <div className="bg-white text-indigo-600 px-8 py-4 rounded-2xl font-black shadow-xl shadow-indigo-200/50 border-2 border-dashed border-indigo-200 group-hover:border-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all flex items-center gap-3">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                                <span>{localCharacters.length > 0 ? `${localCharacters.length} Photos Selected` : "Upload Custom Photos"}</span>
+            {
+                isHost && mode === 'custom' && room.gameState === 'LOBBY' && (
+                    <div className="bg-indigo-50 p-6 border-b border-indigo-100 animate-in slide-in-from-top-4 duration-500">
+                        <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+                            <div className="flex-1">
+                                <h3 className="text-lg font-black text-indigo-900 mb-1">Custom Character Mode</h3>
+                                <p className="text-sm text-indigo-700/70 font-medium">Upload exactly 16, 20, or 24 pictures of your friends, family, or any characters you want!</p>
+                                <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-2 flex items-center gap-2">
+                                    <span className="bg-white px-2 py-0.5 rounded-full border border-indigo-100">Pro Tip</span>
+                                    Portrait (4:5) or Square photos work best!
+                                </p>
                             </div>
-                        </label>
+                            <label className="relative group cursor-pointer">
+                                <input
+                                    type="file"
+                                    multiple
+                                    accept="image/*"
+                                    onChange={handleFileUpload}
+                                    className="hidden"
+                                />
+                                <div className="bg-white text-indigo-600 px-8 py-4 rounded-2xl font-black shadow-xl shadow-indigo-200/50 border-2 border-dashed border-indigo-200 group-hover:border-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all flex items-center gap-3">
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                    <span>{uploading ? 'Uploading...' : localCharacters.length > 0 ? `${localCharacters.length} Photos Ready` : "Upload Custom Photos"}</span>
+                                </div>
+                            </label>
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
                 {/* Main Content */}
@@ -270,7 +356,7 @@ const CharacterSelect = () => {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

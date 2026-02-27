@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../context/GameContext';
 
 const Chat = () => {
-    const { room, sendMessage, socket, sendTypingStatus, opponentTyping } = useGame();
+    const { room, sendMessage, socket, sendTypingStatus, opponentTyping, reportPlayer } = useGame();
     const [input, setInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const chatEndRef = useRef(null);
@@ -10,6 +10,13 @@ const Chat = () => {
 
     const scrollToBottom = () => {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    const handleReport = (msg) => {
+        if (window.confirm('Report this message for offensive content?')) {
+            reportPlayer(msg);
+            alert('Report sent. Thank you for helping us keep Guess Who? Online safe!');
+        }
     };
 
     useEffect(() => {
@@ -83,14 +90,25 @@ const Chat = () => {
                     }
                     const isMe = msg.sender === socket.id;
                     return (
-                        <div key={i} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                            <div className={`max-w-[90%] sm:max-w-[85%] px-3 sm:px-4 py-2 sm:py-3 rounded-xl sm:rounded-2xl text-[13px] sm:text-sm font-medium shadow-sm leading-relaxed ${isMe
-                                ? 'bg-indigo-600 text-white rounded-tr-none shadow-indigo-100'
-                                : 'bg-white text-slate-700 rounded-tl-none border border-slate-100 shadow-slate-100'
-                                }`}>
-                                {msg.text}
-                                <div className={`text-[9px] sm:text-[10px] mt-1 opacity-50 font-bold ${isMe ? 'text-white text-right' : 'text-slate-400'}`}>
-                                    {msg.timestamp}
+                        <div key={i} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} group`}>
+                            <div className="flex items-center gap-2 max-w-[90%] sm:max-w-[85%]">
+                                {!isMe && (
+                                    <button
+                                        onClick={() => handleReport(msg)}
+                                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-slate-300 hover:text-rose-500 order-2"
+                                        title="Report message"
+                                    >
+                                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4a1 1 0 01-.8 1.6H6a1 1 0 01-1-1V6z" clipRule="evenodd" /></svg>
+                                    </button>
+                                )}
+                                <div className={`px-3 sm:px-4 py-2 sm:py-3 rounded-xl sm:rounded-2xl text-[13px] sm:text-sm font-medium shadow-sm leading-relaxed ${isMe
+                                    ? 'bg-indigo-600 text-white rounded-tr-none shadow-indigo-100'
+                                    : 'bg-white text-slate-700 rounded-tl-none border border-slate-100 shadow-slate-100'
+                                    }`}>
+                                    {msg.text}
+                                    <div className={`text-[9px] sm:text-[10px] mt-1 opacity-50 font-bold ${isMe ? 'text-white text-right' : 'text-slate-400'}`}>
+                                        {msg.timestamp}
+                                    </div>
                                 </div>
                             </div>
                         </div>

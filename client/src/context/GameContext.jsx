@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
+import { supabase } from '../supabaseClient';
 
 const GameContext = createContext();
 
@@ -11,9 +12,51 @@ export const GameProvider = ({ children }) => {
     const [socket, setSocket] = useState(null);
     const [room, setRoom] = useState(null);
     const [playerName, setPlayerName] = useState('');
+    const [user, setUser] = useState(null);
+    const [session, setSession] = useState(null);
+    const [isGuest, setIsGuest] = useState(false);
     const [error, setError] = useState('');
     const [opponentTyping, setOpponentTyping] = useState(false);
+    const [stats, setStats] = useState({ wins: 0, losses: 0 });
     const audioContextRef = React.useRef(null);
+
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
+            setUser(session?.user ?? null);
+            if (session?.user?.user_metadata?.username) {
+                setPlayerName(session.user.user_metadata.username);
+            }
+        });
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+            setUser(session?.user ?? null);
+            if (session?.user?.user_metadata?.username) {
+                setPlayerName(session.user.user_metadata.username);
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
+
+    const fetchStats = React.useCallback(async () => {
+        if (!user) return;
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('wins, losses')
+            .eq('id', user.id)
+            .single();
+        if (data && !error) {
+            setStats(data);
+        }
+    }, [user]);
+
+    useEffect(() => {
+        if (user) {
+            fetchStats();
+        }
+    }, [user, fetchStats]);
 
     // Audio helper for programmatic sounds
     const playSound = React.useCallback((freq, duration, type = 'sine', volume = 0.5) => {
@@ -94,16 +137,46 @@ export const GameProvider = ({ children }) => {
         }
     }, [room?.id, socket]);
 
+    const reportPlayer = React.useCallback((message) => {
+        if (room && socket) {
+            socket.emit('report_user', { roomId: room.id, message, reporterName: playerName });
+        }
+    }, [room?.id, socket, playerName]);
+
+    const hasAttemptedRejoinRef = React.useRef(false);
+
+    useEffect(() => {
+        if (socket && socket.connected && user && !room && !hasAttemptedRejoinRef.current) {
+            const lastRoomId = localStorage.getItem('last_room_id');
+            const savedName = localStorage.getItem('player_name');
+            if (lastRoomId && savedName) {
+                console.log("🔄 Auto-rejoining room:", lastRoomId, "with user:", user.id);
+                socket.emit('join_room', { roomId: lastRoomId, playerName: savedName, userId: user.id });
+                hasAttemptedRejoinRef.current = true;
+            }
+        }
+    }, [socket, user, room]);
+
     useEffect(() => {
         const newSocket = io(SOCKET_URL);
         setSocket(newSocket);
 
+        newSocket.on('connect', () => {
+            console.log("🔌 Socket connected:", newSocket.id);
+            // Re-allow re-joining on a fresh connection if we lost it
+            hasAttemptedRejoinRef.current = false;
+        });
+
         newSocket.on('room_created', ({ roomId, room }) => {
             setRoom(room);
+            localStorage.setItem('last_room_id', roomId);
         });
 
         newSocket.on('room_updated', (updatedRoom) => {
             setRoom(updatedRoom);
+            if (updatedRoom?.id) {
+                localStorage.setItem('last_room_id', updatedRoom.id);
+            }
         });
 
         newSocket.on('game_started', (updatedRoom) => {
@@ -121,6 +194,7 @@ export const GameProvider = ({ children }) => {
         newSocket.on('room_terminated', (message) => {
             setRoom(null);
             setError(message);
+            localStorage.removeItem('last_room_id');
             setTimeout(() => setError(''), 5000);
         });
 
@@ -154,17 +228,24 @@ export const GameProvider = ({ children }) => {
             setTimeout(() => setError(''), 3000);
         });
 
+        newSocket.on('stats_updated', () => {
+            console.log("📊 Stats updated, re-fetching...");
+            fetchStats();
+        });
+
         return () => newSocket.close();
     }, []);
 
     const createRoom = (name) => {
         setPlayerName(name);
-        socket.emit('create_room', { playerName: name });
+        localStorage.setItem('player_name', name);
+        socket.emit('create_room', { playerName: name, userId: user?.id });
     };
 
     const joinRoom = (roomId, name) => {
         setPlayerName(name);
-        socket.emit('join_room', { roomId, playerName: name });
+        localStorage.setItem('player_name', name);
+        socket.emit('join_room', { roomId, playerName: name, userId: user?.id });
     };
 
     const startGame = React.useCallback((characters, settings) => {
@@ -193,6 +274,10 @@ export const GameProvider = ({ children }) => {
         }
     }, [room?.turn, playPing, room?.gameState]);
 
+    const continueAsGuest = () => {
+        setIsGuest(true);
+    };
+
     return (
         <GameContext.Provider value={{
             socket,
@@ -211,7 +296,14 @@ export const GameProvider = ({ children }) => {
             endTurn,
             playTick,
             updateEliminatedCount,
-            leaveRoom
+            reportPlayer,
+            leaveRoom,
+            user,
+            session,
+            isGuest,
+            continueAsGuest,
+            stats,
+            fetchStats
         }}>
             {children}
         </GameContext.Provider>

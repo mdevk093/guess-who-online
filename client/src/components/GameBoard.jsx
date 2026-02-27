@@ -3,7 +3,7 @@ import { useGame } from '../context/GameContext';
 import Chat from './Chat';
 
 const GameBoard = () => {
-    const { room, socket, makeGuess, restartGame, endTurn, playTick, updateEliminatedCount, sendMessage, leaveRoom, opponentTyping } = useGame();
+    const { room, socket, makeGuess, restartGame, endTurn, playTick, updateEliminatedCount, sendMessage, leaveRoom, opponentTyping, stats, user } = useGame();
     const [eliminatedIds, setEliminatedIds] = useState([]);
     const [guessModalOpen, setGuessModalOpen] = useState(false);
     const [cardPreviewOpen, setCardPreviewOpen] = useState(false);
@@ -12,9 +12,11 @@ const GameBoard = () => {
     const [timeLeft, setTimeLeft] = useState(null);
     const lastTickRef = React.useRef(null);
 
-    const me = room.players.find(p => p.id === socket.id);
-    const myTurn = room.players[room.turn].id === socket.id;
-    const opponent = room.players.find(p => p.id !== socket.id);
+    if (!room) return null;
+
+    const me = room?.players?.find(p => p.id === socket.id);
+    const myTurn = room?.players?.[room?.turn]?.id === socket.id;
+    const opponent = room?.players?.find(p => p.id !== socket.id);
 
     // Track unread messages on mobile
     React.useEffect(() => {
@@ -66,8 +68,8 @@ const GameBoard = () => {
 
     // Determine result from room state
     const isGameOver = room.gameState === 'GAME_OVER';
-    const won = isGameOver && room.result.winnerId === socket.id;
-    const correctCharacter = isGameOver ? room.result.correctCharacter : null;
+    const won = isGameOver && room.result?.winnerId === socket.id;
+    const correctCharacter = isGameOver ? room.result?.correctCharacter : null;
 
     // Timer Logic
     React.useEffect(() => {
@@ -95,22 +97,12 @@ const GameBoard = () => {
             } else if (remaining <= 0 || remaining > 5000) {
                 lastTickRef.current = null;
             }
-
-            // Auto-end turn if timer hits zero and it's my turn
-            if (remaining <= 0 && myTurn && !isGameOver) {
-                const nextPlayer = room.players.find(p => p.id !== socket.id);
-                sendMessage({
-                    type: 'DIVIDER',
-                    text: `Timer ran out, it's ${nextPlayer?.name}'s turn`
-                });
-                endTurn();
-            }
         };
 
         updateTimer();
         const interval = setInterval(updateTimer, 50); // Faster check (50ms) for zero-jitter rhythm
         return () => clearInterval(interval);
-    }, [room.turnStartTime, room.settings?.timerLimit, myTurn, isGameOver, room.gameState, endTurn]);
+    }, [room.turnStartTime, room.settings?.timerLimit, isGameOver, room.gameState]);
 
     const formatTime = (seconds) => {
         if (seconds === null) return null;
@@ -150,6 +142,19 @@ const GameBoard = () => {
                                 <span className="text-[6px] sm:text-[8px] font-bold text-white/40 uppercase tracking-[0.2em] leading-none mb-0.5 sm:mb-1">Time Left</span>
                                 <span className={`text-xs sm:text-xl font-black tabular-nums transition-colors ${timeLeft < 10 ? 'text-rose-400' : 'text-white'}`}>
                                     {formatTime(timeLeft)}
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Guesses Left Display */}
+                    {room.settings?.guessLimit !== null && (
+                        <div className="flex items-center gap-2 sm:gap-3 bg-white px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl text-slate-900 shadow-md border border-slate-100">
+                            <div className={`w-2 h-2 rounded-full ${(me?.guessesLeft || 0) <= 1 ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`} />
+                            <div className="flex flex-col items-center">
+                                <span className="text-[6px] sm:text-[8px] font-bold text-slate-400 uppercase tracking-[0.2em] leading-none mb-0.5 sm:mb-1">Guesses</span>
+                                <span className="text-xs sm:text-xl font-black tabular-nums">
+                                    {me?.guessesLeft ?? 0}
                                 </span>
                             </div>
                         </div>
@@ -219,14 +224,14 @@ const GameBoard = () => {
                         <div className="bg-slate-900 rounded-2xl p-4 text-white shadow-lg">
                             <span className="text-[8px] font-black text-white/40 uppercase tracking-widest block mb-1">Your Suspects</span>
                             <div className="flex items-end justify-between">
-                                <span className="text-3xl font-black tracking-tighter leading-none">{room.characters.length - eliminatedIds.length}</span>
+                                <span className="text-3xl font-black tracking-tighter leading-none">{(room?.characters?.length || 0) - eliminatedIds.length}</span>
                                 <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Left</span>
                             </div>
                         </div>
                         <div className="bg-indigo-600 rounded-2xl p-4 text-white shadow-lg">
-                            <span className="text-[8px] font-black text-white/60 uppercase tracking-widest block mb-1">{opponent?.name?.split(' ')[0]}'s Suspects</span>
+                            <span className="text-[8px] font-black text-white/60 uppercase tracking-widest block mb-1">{opponent?.name?.split(' ')[0] || 'Opponent'}'s Suspects</span>
                             <div className="flex items-end justify-between">
-                                <span className="text-3xl font-black tracking-tighter leading-none">{room.characters.length - (opponent?.eliminatedCount || 0)}</span>
+                                <span className="text-3xl font-black tracking-tighter leading-none">{(room?.characters?.length || 0) - (opponent?.eliminatedCount || 0)}</span>
                                 <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Left</span>
                             </div>
                         </div>
@@ -280,7 +285,7 @@ const GameBoard = () => {
                             disabled={!myTurn || isGameOver}
                             className="flex-1 bg-slate-900 hover:bg-slate-800 disabled:opacity-30 h-12 rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-lg transition-all active:scale-95"
                         >
-                            End
+                            End Turn
                         </button>
                     </div>
 
@@ -301,6 +306,26 @@ const GameBoard = () => {
                         )}
                     </button>
                 </div>
+
+                {/* Reconnection Overlay */}
+                {opponent && !opponent.connected && !isGameOver && (
+                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm z-[80] flex items-center justify-center p-6 animate-in fade-in duration-300">
+                        <div className="bg-white rounded-[2rem] p-8 max-w-sm w-full text-center shadow-2xl border border-slate-100 transform animate-in zoom-in duration-300">
+                            <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                                <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                            </div>
+                            <h3 className="text-xl font-black text-slate-900 mb-2">Opponent Disconnected</h3>
+                            <p className="text-slate-500 text-sm font-medium leading-relaxed">
+                                Waiting for <span className="text-indigo-600 font-bold">{opponent.name}</span> to rejoin...
+                            </p>
+                            <div className="mt-8 flex items-center justify-center gap-2">
+                                <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                                <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                                <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-bounce" />
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Modals same but light theme... */}
@@ -343,9 +368,36 @@ const GameBoard = () => {
                         <h2 className={`text-7xl font-black mb-4 tracking-tighter ${won ? 'text-emerald-500' : 'text-rose-500'}`}>
                             {won ? 'VICTORY!' : 'GAME OVER'}
                         </h2>
+
+                        {room.result?.message && (
+                            <p className="text-2xl font-black text-slate-900 mb-2 animate-bounce">
+                                {room.result.message}
+                            </p>
+                        )}
+
                         <p className="text-xl text-slate-400 font-medium">
                             The secret character was <span className="text-slate-900 font-black tracking-tight underline decoration-indigo-500 decoration-4 underline-offset-4">{correctCharacter?.name}</span>
                         </p>
+
+                        {/* Immediate Stat Feedback */}
+                        {user && (
+                            <div className="mt-8 p-6 bg-slate-50 rounded-3xl border border-slate-100 inline-flex items-center gap-6">
+                                <div className="text-left">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Career Record</span>
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex flex-col">
+                                            <span className="text-2xl font-black text-emerald-500 leading-none">{stats.wins}</span>
+                                            <span className="text-[8px] font-bold text-slate-400 uppercase">Wins</span>
+                                        </div>
+                                        <div className="w-[1px] h-8 bg-slate-200" />
+                                        <div className="flex flex-col">
+                                            <span className="text-2xl font-black text-rose-500 leading-none">{stats.losses}</span>
+                                            <span className="text-[8px] font-bold text-slate-400 uppercase">Losses</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex flex-col gap-4 w-full max-w-xs">

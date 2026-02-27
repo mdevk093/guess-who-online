@@ -1,11 +1,18 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { GameProvider, useGame } from './context/GameContext';
 import Lobby from './components/Lobby';
 import CharacterSelect from './components/CharacterSelect';
 import GameBoard from './components/GameBoard';
+import Auth from './components/Auth';
+import ErrorBoundary from './components/ErrorBoundary';
+import { supabase } from './supabaseClient';
 
 const GameRouter = () => {
-  const { room, playerName } = useGame();
+  const { room, session, isGuest } = useGame();
+
+  if (!session && !isGuest) {
+    return <Auth />;
+  }
 
   if (!room) {
     return <Lobby />;
@@ -29,7 +36,9 @@ const GameRouter = () => {
 function App() {
   return (
     <GameProvider>
-      <GameRouter />
+      <ErrorBoundary>
+        <GameRouter />
+      </ErrorBoundary>
     </GameProvider>
   );
 }

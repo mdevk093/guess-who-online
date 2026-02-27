@@ -1,15 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
+import { supabase } from '../supabaseClient';
 
 const Lobby = () => {
-    const { createRoom, joinRoom, error } = useGame();
+    const { createRoom, joinRoom, error, user, stats } = useGame();
     const [name, setName] = useState('');
     const [roomCode, setRoomCode] = useState('');
     const [isJoining, setIsJoining] = useState(false);
 
+    useEffect(() => {
+        if (user) {
+            setName(user.user_metadata?.username || '');
+        }
+    }, [user]);
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+    };
+
     return (
         <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
-            <div className="w-full max-w-md bg-white rounded-[2.5rem] p-8 sm:p-10 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.1)] border border-slate-100">
+            <div className="w-full max-w-md bg-white rounded-[2.5rem] p-8 sm:p-10 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.1)] border border-slate-100 relative">
+                {/* User Profile / Stats */}
+                {user && (
+                    <div className="absolute -top-4 -right-4 bg-slate-900 text-white p-4 rounded-2xl shadow-xl border border-white/10 flex flex-col gap-1 min-w-[120px]">
+                        <span className="text-[8px] font-black text-white/40 uppercase tracking-widest leading-none">Your Stats</span>
+                        <div className="flex items-center gap-3">
+                            <div className="flex flex-col">
+                                <span className="text-xl font-black text-emerald-400 leading-none">{stats.wins}</span>
+                                <span className="text-[6px] font-bold text-white/40 uppercase">Wins</span>
+                            </div>
+                            <div className="w-[1px] h-6 bg-white/10" />
+                            <div className="flex flex-col">
+                                <span className="text-xl font-black text-rose-400 leading-none">{stats.losses}</span>
+                                <span className="text-[6px] font-bold text-white/40 uppercase">Losses</span>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleLogout}
+                            className="mt-2 text-[8px] font-black text-white/20 hover:text-white/60 uppercase tracking-widest text-left"
+                        >
+                            Log Out →
+                        </button>
+                    </div>
+                )}
                 <div className="flex justify-center mb-8">
                     <div className="w-16 h-16 bg-indigo-600 rounded-3xl flex items-center justify-center shadow-lg shadow-indigo-200">
                         <span className="text-white text-3xl font-black italic">?</span>
