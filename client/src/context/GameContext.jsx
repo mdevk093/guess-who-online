@@ -141,9 +141,9 @@ export const GameProvider = ({ children }) => {
         }
     }, [room, socket]);
 
-    const updateEliminatedCount = React.useCallback((count) => {
+    const updateEliminatedCount = React.useCallback((count, eliminatedIds) => {
         if (room && socket) {
-            socket.emit('update_eliminated_count', { roomId: room.id, count });
+            socket.emit('update_eliminated_count', { roomId: room.id, count, eliminatedIds });
         }
     }, [room, socket]);
 
@@ -155,21 +155,36 @@ export const GameProvider = ({ children }) => {
 
     const hasAttemptedRejoinRef = React.useRef(false);
 
+    const sessionRef = React.useRef(null);
+
     useEffect(() => {
-        if (socket && socket.connected && !room && !hasAttemptedRejoinRef.current) {
-            const lastRoomId = localStorage.getItem('last_room_id');
-            const savedName = localStorage.getItem('player_name');
-            if (lastRoomId && savedName) {
-                console.log("🔄 Auto-rejoining room:", lastRoomId);
-                socket.emit('join_room', {
-                    roomId: lastRoomId,
-                    playerName: savedName,
-                    accessToken: session?.access_token || null
-                });
-                hasAttemptedRejoinRef.current = true;
+        sessionRef.current = session;
+    }, [session]);
+
+    const attemptAutoRejoin = React.useCallback(async (activeSocket) => {
+        if (!activeSocket || !activeSocket.connected || hasAttemptedRejoinRef.current) return;
+        const lastRoomId = sessionStorage.getItem('last_room_id') || localStorage.getItem('last_room_id');
+        const savedName = sessionStorage.getItem('player_name') || localStorage.getItem('player_name');
+        if (lastRoomId && savedName) {
+            hasAttemptedRejoinRef.current = true;
+            // Ensure we grab the latest Supabase session if available
+            let token = sessionRef.current?.access_token || null;
+            if (!token) {
+                try {
+                    const { data } = await supabase.auth.getSession();
+                    token = data?.session?.access_token || null;
+                } catch (e) {
+                    // ignore
+                }
             }
+            console.log("🔄 Auto-rejoining room:", lastRoomId, "as", savedName);
+            activeSocket.emit('join_room', {
+                roomId: lastRoomId,
+                playerName: savedName,
+                accessToken: token
+            });
         }
-    }, [socket, session, room]);
+    }, []);
 
     useEffect(() => {
         const newSocket = io(SOCKET_URL);
@@ -179,25 +194,40 @@ export const GameProvider = ({ children }) => {
             console.log("🔌 Socket connected:", newSocket.id);
             // Re-allow re-joining on a fresh connection if we lost it
             hasAttemptedRejoinRef.current = false;
+            attemptAutoRejoin(newSocket);
         });
 
         newSocket.on('room_created', ({ roomId, room }) => {
             setRoom(room);
+            sessionStorage.setItem('last_room_id', roomId);
             localStorage.setItem('last_room_id', roomId);
         });
 
         newSocket.on('room_updated', (updatedRoom) => {
             setRoom(updatedRoom);
             if (updatedRoom?.id) {
+                sessionStorage.setItem('last_room_id', updatedRoom.id);
                 localStorage.setItem('last_room_id', updatedRoom.id);
+                if (updatedRoom.gameState === 'LOBBY' || updatedRoom.gameState === 'SELECTING') {
+                    sessionStorage.removeItem(`eliminated_ids_${updatedRoom.id}`);
+                    localStorage.removeItem(`eliminated_ids_${updatedRoom.id}`);
+                }
             }
         });
 
         newSocket.on('game_started', (updatedRoom) => {
+            if (updatedRoom?.id) {
+                sessionStorage.removeItem(`eliminated_ids_${updatedRoom.id}`);
+                localStorage.removeItem(`eliminated_ids_${updatedRoom.id}`);
+            }
             setRoom(updatedRoom);
         });
 
         newSocket.on('start_playing', (updatedRoom) => {
+            if (updatedRoom?.id) {
+                sessionStorage.removeItem(`eliminated_ids_${updatedRoom.id}`);
+                localStorage.removeItem(`eliminated_ids_${updatedRoom.id}`);
+            }
             setRoom(updatedRoom);
         });
 
@@ -206,8 +236,14 @@ export const GameProvider = ({ children }) => {
         });
 
         newSocket.on('room_terminated', (message) => {
+            const lastRoomId = sessionStorage.getItem('last_room_id') || localStorage.getItem('last_room_id');
+            if (lastRoomId) {
+                sessionStorage.removeItem(`eliminated_ids_${lastRoomId}`);
+                localStorage.removeItem(`eliminated_ids_${lastRoomId}`);
+            }
             setRoom(null);
             setError(message);
+            sessionStorage.removeItem('last_room_id');
             localStorage.removeItem('last_room_id');
             setTimeout(() => setError(''), 5000);
         });
@@ -252,12 +288,14 @@ export const GameProvider = ({ children }) => {
 
     const createRoom = (name) => {
         setPlayerName(name);
+        sessionStorage.setItem('player_name', name);
         localStorage.setItem('player_name', name);
         socket.emit('create_room', { playerName: name, accessToken: session?.access_token || null });
     };
 
     const joinRoom = (roomId, name) => {
         setPlayerName(name);
+        sessionStorage.setItem('player_name', name);
         localStorage.setItem('player_name', name);
         socket.emit('join_room', { roomId, playerName: name, accessToken: session?.access_token || null });
     };
@@ -276,6 +314,10 @@ export const GameProvider = ({ children }) => {
 
     const leaveRoom = React.useCallback(() => {
         if (room && socket) {
+            sessionStorage.removeItem(`eliminated_ids_${room.id}`);
+            localStorage.removeItem(`eliminated_ids_${room.id}`);
+            sessionStorage.removeItem('last_room_id');
+            localStorage.removeItem('last_room_id');
             socket.emit('leave_room', { roomId: room.id });
             setRoom(null);
         }

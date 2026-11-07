@@ -75,7 +75,8 @@ function sanitizeRoomForPlayer(room, recipientSocketId) {
             ...p,
             selectedCharacter: (isGameOver || p.id === recipientSocketId)
                 ? p.selectedCharacter
-                : (p.selectedCharacter ? { hidden: true } : null)
+                : (p.selectedCharacter ? { hidden: true } : null),
+            eliminatedIds: (p.id === recipientSocketId) ? (p.eliminatedIds || []) : undefined
         }))
     };
 }
@@ -180,6 +181,8 @@ function handleSocketEvents(io, socket) {
                 name: safePlayerName,
                 isHost: true,
                 selectedCharacter: null,
+                eliminatedIds: [],
+                eliminatedCount: 0,
                 isReady: false,
                 connected: true
             }],
@@ -247,6 +250,8 @@ function handleSocketEvents(io, socket) {
             name: safePlayerName,
             isHost: false,
             selectedCharacter: null,
+            eliminatedIds: [],
+            eliminatedCount: 0,
             isReady: false,
             connected: true
         };
@@ -353,6 +358,8 @@ function handleSocketEvents(io, socket) {
                         p.guessesLeft = (room.settings.guessLimit !== undefined && room.settings.guessLimit !== null)
                             ? room.settings.guessLimit
                             : null;
+                        p.eliminatedIds = [];
+                        p.eliminatedCount = 0;
                     });
 
                     room.turnStartTime = Date.now();
@@ -516,6 +523,15 @@ function handleSocketEvents(io, socket) {
                     }
                 }
 
+                // Auto-record wrong guess in player's server-side eliminatedIds (NFR-REL-02)
+                if (!Array.isArray(guesser.eliminatedIds)) {
+                    guesser.eliminatedIds = [];
+                }
+                if (character.id !== undefined && !guesser.eliminatedIds.includes(character.id)) {
+                    guesser.eliminatedIds.push(character.id);
+                    guesser.eliminatedCount = guesser.eliminatedIds.length;
+                }
+
                 socket.emit('guess_result', { isCorrect: false, characterId: character.id });
 
                 // Add chat notification for everyone
@@ -547,6 +563,8 @@ function handleSocketEvents(io, socket) {
             room.settings = { timerLimit: null };
             room.players.forEach(p => {
                 p.selectedCharacter = null;
+                p.eliminatedIds = [];
+                p.eliminatedCount = 0;
                 p.isReady = false;
             });
             room.result = null;
@@ -582,14 +600,19 @@ function handleSocketEvents(io, socket) {
         }
     });
 
-    // Update Eliminated Count
-    socket.on('update_eliminated_count', ({ roomId, count }) => {
-        if (!checkRateLimit(socket.id, 'update_eliminated_count', 500)) return;
+    // Update Eliminated Cards & Count (NFR-REL-02)
+    socket.on('update_eliminated_count', ({ roomId, count, eliminatedIds }) => {
+        if (!checkRateLimit(socket.id, 'update_eliminated_count', 200)) return;
         const room = rooms.get(roomId);
         if (room) {
             const player = room.players.find(p => p.id === socket.id);
             if (player) {
-                player.eliminatedCount = count;
+                if (Array.isArray(eliminatedIds)) {
+                    player.eliminatedIds = eliminatedIds.slice(0, 30);
+                    player.eliminatedCount = player.eliminatedIds.length;
+                } else if (typeof count === 'number') {
+                    player.eliminatedCount = count;
+                }
                 emitRoomState(io, room, 'room_updated');
             }
         }

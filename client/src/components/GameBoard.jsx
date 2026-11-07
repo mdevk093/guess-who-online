@@ -4,17 +4,32 @@ import Chat from './Chat';
 
 const GameBoard = () => {
     const { room, socket, makeGuess, restartGame, endTurn, updateEliminatedCount, sendMessage, leaveRoom, opponentTyping, user, stats } = useGame();
-    const [eliminatedIds, setEliminatedIds] = useState([]);
+    const me = room.players.find(p => p.id === socket.id);
+    const myTurn = room.players[room.turn].id === socket.id;
+    const opponent = room.players.find(p => p.id !== socket.id);
+
+    // Initialize eliminatedIds from server player state or storage (NFR-REL-02)
+    const [eliminatedIds, setEliminatedIds] = useState(() => {
+        if (Array.isArray(me?.eliminatedIds) && me.eliminatedIds.length > 0) {
+            return me.eliminatedIds;
+        }
+        try {
+            const saved = sessionStorage.getItem(`eliminated_ids_${room.id}`) || localStorage.getItem(`eliminated_ids_${room.id}`);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed)) return parsed;
+            }
+        } catch (err) {
+            console.error('Failed to parse saved eliminatedIds:', err);
+        }
+        return [];
+    });
     const [guessModalOpen, setGuessModalOpen] = useState(false);
     const [mobileTab, setMobileTab] = useState('board'); // 'board' or 'chat'
     const [unreadMessages, setUnreadMessages] = useState(false);
     const [timeLeft, setTimeLeft] = useState(null);
     const [showMyCharacterModal, setShowMyCharacterModal] = useState(false);
     const [showInfoHub, setShowInfoHub] = useState(false);
-
-    const me = room.players.find(p => p.id === socket.id);
-    const myTurn = room.players[room.turn].id === socket.id;
-    const opponent = room.players.find(p => p.id !== socket.id);
 
     // Track unread messages on mobile
     React.useEffect(() => {
@@ -59,10 +74,19 @@ const GameBoard = () => {
         return () => window.removeEventListener('wrong_guess', handleWrongGuess);
     }, [eliminatedIds]);
 
-    // Sync eliminated count to server
+    // Sync eliminatedIds to storage and server (NFR-REL-02)
     React.useEffect(() => {
-        updateEliminatedCount(eliminatedIds.length);
-    }, [eliminatedIds.length]);
+        if (room?.id) {
+            try {
+                const serialized = JSON.stringify(eliminatedIds);
+                sessionStorage.setItem(`eliminated_ids_${room.id}`, serialized);
+                localStorage.setItem(`eliminated_ids_${room.id}`, serialized);
+            } catch (err) {
+                console.error('Failed to save eliminatedIds:', err);
+            }
+        }
+        updateEliminatedCount(eliminatedIds.length, eliminatedIds);
+    }, [eliminatedIds, room?.id]);
 
     // Determine result from room state
     const isGameOver = room.gameState === 'GAME_OVER';

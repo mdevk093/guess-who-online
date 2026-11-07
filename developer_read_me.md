@@ -70,17 +70,20 @@ To prevent total application failure (the "white screen of death"), we use a cus
 
 The game is designed to be "refresh-proof," allowing players to stay in their lobby even if they accidentally reload their browser or lose connection briefly.
 
-### Client-Side Persistence
-- **Lobby Memory**: `GameContext.jsx` automatically stores the `last_room_id` and `player_name` in the browser's `localStorage`.
-- **Auto-Rejoin**: Upon mounting or re-connecting, the `GameContext` checks for these stored values and automatically sends a `join_room` event to the server.
+### Client-Side Persistence (`FR-ROOM-05` & `NFR-REL-01`)
+- **Per-Tab & Browser Memory**: `GameContext.jsx` automatically stores `last_room_id` and `player_name` in both `sessionStorage` (prioritized per-tab so multi-tab local testing doesn't overwrite player identities) and `localStorage` (as a fallback).
+- **Socket Connect Auto-Rejoin**: Directly inside the `newSocket.on('connect')` listener (`attemptAutoRejoin`), `GameContext` checks for stored credentials, resolves any active Supabase JWT session, and immediately emits `join_room` so page refreshes reconnect reliably without racing React's render cycle.
 
 ### Server-Side Grace Period
 - **Grace Period**: When a player disconnects, the server does *not* immediately terminate the room. Instead, it starts a 20-second `roomCleanupTimer`.
 - **State Preservation**: The player's data (identity, selected character, eliminated cards) remains in the `room.players` array with a `connected: false` flag.
 - **Re-identification**: When a "new" socket joins with the same `userId` (for logged-in users) or `playerName` (for guests), the server re-attaches them to their existing player object and cancels the cleanup timer.
 
-### Data Synchronization
-All critical game states (eliminated cards, current turn, guess limits) are stored in the server's `rooms` Map, ensured that a reconnected player instantly sees the board exactly as they left it.
+### Data Synchronization & Eliminated Cards Persistence (`NFR-REL-02`)
+All critical game states (eliminated cards, current turn, guess limits) are stored in the server's `rooms` Map and backed up in `localStorage` (`eliminated_ids_<roomId>`), ensuring that a reconnected player instantly sees their exact flipped/eliminated cards on the board as they left them:
+- **Dual Persistence**: Whenever a player toggles a card (`toggleEliminate`) or makes an incorrect guess, `eliminatedIds` is saved to `localStorage` and sent to the server via `update_eliminated_count`.
+- **Privacy Redaction**: `sanitizeRoomForPlayer` only sends `player.eliminatedIds` to that specific player (`p.id === recipientSocketId`), while the opponent only receives `player.eliminatedCount` (so opponents can see *how many* suspects are left, but never *which* specific cards were eliminated).
+- **Lifecycle Cleanup**: Saved `eliminatedIds` are automatically cleared when a new round starts (`restart_game`, `start_playing`) or when the room is left/terminated.
 
 ---
 
@@ -111,6 +114,7 @@ All critical game states (eliminated cards, current turn, guess limits) are stor
 
 | Date | Commit / Scope | Summary of Changes |
 | :--- | :--- | :--- |
-| **2026-11-06** | `NFR-SEC-03` & `NFR-SEC-04` | • Added `sanitizeRoomForPlayer` & `emitRoomState` to redact opponent's secret character from WebSocket payloads until `GAME_OVER`.<br>• Enforced server-side active-turn checks on `make_guess` and `end_turn`.<br>• Verified Supabase `access_token` JWTs server-side on `create_room` and `join_room` to prevent `userId` spoofing.<br>• Removed duplicate client-side turn-end trigger on timer expiration in `GameBoard.jsx`. |
+| **2026-11-06** | `NFR-REL-01`, `NFR-REL-02` & `FR-ROOM-05` | • Persisted `eliminatedIds` across both server player state and `sessionStorage`/`localStorage` (`eliminated_ids_<roomId>`) so browser refreshes restore flipped cards.<br>• Fixed auto-rejoin race condition on page refresh by triggering `attemptAutoRejoin` directly inside `newSocket.on('connect')` and isolating per-tab `player_name` via `sessionStorage`.<br>• Redacted opponent's `eliminatedIds` array in `sanitizeRoomForPlayer` so opponents only see `eliminatedCount`.<br>• Auto-recorded wrong guess eliminations server-side and cleared stale `eliminatedIds` on rematch/room exit. |
+| **2026-11-06** | `6034bb2` (`NFR-SEC-03` & `NFR-SEC-04`) | • Added `sanitizeRoomForPlayer` & `emitRoomState` to redact opponent's secret character from WebSocket payloads until `GAME_OVER`.<br>• Enforced server-side active-turn checks on `make_guess` and `end_turn`.<br>• Verified Supabase `access_token` JWTs server-side on `create_room` and `join_room` to prevent `userId` spoofing.<br>• Removed duplicate client-side turn-end trigger on timer expiration in `GameBoard.jsx`. |
 | **2026-11-06** | `37c25c2` | • Reduced player disconnection grace period (`roomCleanupTimer`) from 60 seconds to **20 seconds**. |
 | **2026-11-06** | `e375cc0` | • Consolidated UI updates across `Landing.jsx`, `CharacterSelect.jsx`, `GameBoard.jsx`, `Chat.jsx`, `Auth.jsx`, and `GameContext.jsx`. |
