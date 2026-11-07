@@ -28,6 +28,7 @@ export const GameProvider = ({ children }) => {
     const [error, setError] = useState('');
     const [opponentTyping, setOpponentTyping] = useState(false);
     const [stats, setStats] = useState({ wins: 0, losses: 0 });
+    const [publicRooms, setPublicRooms] = useState([]);
     const audioContextRef = React.useRef(null);
 
     useEffect(() => {
@@ -109,6 +110,15 @@ export const GameProvider = ({ children }) => {
 
     const playTick = React.useCallback(() => {
         playSound(1200, 0.05, 'sine', 0.1); // Short high-pitched tick
+    }, [playSound]);
+
+    // Upbeat two-tone chime when a player joins a lobby
+    const playJoinSound = React.useCallback(() => {
+        playSound(523.25, 0.14, 'triangle', 0.4); // C5
+        setTimeout(() => {
+            playSound(783.99, 0.25, 'triangle', 0.45); // G5
+        }, 110);
+        console.log("🔔 Lobby join sound played");
     }, [playSound]);
 
     const sendMessage = React.useCallback((message) => {
@@ -195,6 +205,15 @@ export const GameProvider = ({ children }) => {
             // Re-allow re-joining on a fresh connection if we lost it
             hasAttemptedRejoinRef.current = false;
             attemptAutoRejoin(newSocket);
+            newSocket.emit('get_public_rooms');
+        });
+
+        newSocket.on('public_rooms_update', (roomsList) => {
+            setPublicRooms(Array.isArray(roomsList) ? roomsList : []);
+        });
+
+        newSocket.on('player_joined_sound', () => {
+            playJoinSound();
         });
 
         newSocket.on('room_created', ({ roomId, room }) => {
@@ -286,12 +305,28 @@ export const GameProvider = ({ children }) => {
         return () => newSocket.close();
     }, []);
 
-    const createRoom = (name) => {
+    const createRoom = (name, isPublic = false) => {
         setPlayerName(name);
         sessionStorage.setItem('player_name', name);
         localStorage.setItem('player_name', name);
-        socket.emit('create_room', { playerName: name, accessToken: session?.access_token || null });
+        socket.emit('create_room', {
+            playerName: name,
+            accessToken: session?.access_token || null,
+            isPublic: Boolean(isPublic)
+        });
     };
+
+    const toggleRoomPublic = React.useCallback((isPublic) => {
+        if (room && socket) {
+            socket.emit('toggle_room_public', { roomId: room.id, isPublic: Boolean(isPublic) });
+        }
+    }, [room, socket]);
+
+    const fetchPublicRooms = React.useCallback(() => {
+        if (socket) {
+            socket.emit('get_public_rooms');
+        }
+    }, [socket]);
 
     const joinRoom = (roomId, name) => {
         setPlayerName(name);
@@ -342,6 +377,10 @@ export const GameProvider = ({ children }) => {
             error,
             createRoom,
             joinRoom,
+            publicRooms,
+            fetchPublicRooms,
+            toggleRoomPublic,
+            playJoinSound,
             startGame,
             selectCharacter,
             sendMessage,

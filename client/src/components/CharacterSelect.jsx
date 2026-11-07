@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
 
 const CharacterSelect = () => {
-    const { room, playerName, startGame, selectCharacter, socket, leaveRoom } = useGame();
+    const { room, playerName, startGame, selectCharacter, toggleRoomPublic, socket, leaveRoom } = useGame();
     const [mode, setMode] = useState('default'); // 'default', 'custom', or one of the preset keys
     const [presets, setPresets] = useState({});
     const [localCharacters, setLocalCharacters] = useState([]);
@@ -91,7 +91,7 @@ const CharacterSelect = () => {
                             </div>
                             <div className="flex flex-col min-w-0">
                                 <h2 className="text-base sm:text-xl font-extrabold text-slate-900 tracking-tight leading-tight truncate">Character Selection</h2>
-                                <div className="flex items-center gap-2 mt-1">
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
                                     <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest leading-none">Room: <span className="text-indigo-600 font-black">{room.id}</span></p>
                                     <button
                                         onClick={copyJoinLink}
@@ -103,6 +103,29 @@ const CharacterSelect = () => {
                                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 012-2v-8a2 2 0 01-2-2h-8a2 2 0 01-2 2v8a2 2 0 012 2z"></path></svg>
                                         <span className="text-[9px] font-black uppercase tracking-tighter">{copied ? 'Copied!' : 'Copy Link'}</span>
                                     </button>
+                                    {isHost && room.gameState === 'LOBBY' ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleRoomPublic(!room.isPublic)}
+                                            className={`flex items-center gap-1 px-2 py-0.5 rounded-md border transition-all active:scale-95 ${room.isPublic
+                                                ? 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100'
+                                                : 'bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200'
+                                                }`}
+                                            title="Toggle Public/Private Room"
+                                        >
+                                            <span className={`w-1.5 h-1.5 rounded-full ${room.isPublic ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                                            <span className="text-[9px] font-black uppercase tracking-tighter">
+                                                {room.isPublic ? 'Public' : 'Private'}
+                                            </span>
+                                        </button>
+                                    ) : (
+                                        <span className={`flex items-center gap-1 px-2 py-0.5 rounded-md border text-[9px] font-black uppercase tracking-tighter ${room.isPublic
+                                            ? 'bg-emerald-50 border-emerald-200 text-emerald-600'
+                                            : 'bg-slate-100 border-slate-200 text-slate-500'
+                                            }`}>
+                                            {room.isPublic ? 'Public' : 'Private'}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -294,6 +317,27 @@ const CharacterSelect = () => {
                         </div>
 
                         <div className="space-y-6">
+                            {/* Room Visibility Toggle */}
+                            <div className="flex flex-col items-start">
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Lobby Visibility</span>
+                                <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200 w-full">
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleRoomPublic(true)}
+                                        className={`px-4 py-2.5 rounded-xl text-xs font-black tracking-widest transition-all shadow-sm flex-1 ${room.isPublic ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-700 bg-white border border-slate-200'}`}
+                                    >
+                                        🌐 PUBLIC
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleRoomPublic(false)}
+                                        className={`px-4 py-2.5 rounded-xl text-xs font-black tracking-widest transition-all shadow-sm flex-1 ${!room.isPublic ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-700 bg-white border border-slate-200'}`}
+                                    >
+                                        🔒 PRIVATE
+                                    </button>
+                                </div>
+                            </div>
+
                             {/* Theme */}
                             <div className="flex flex-col items-start cursor-pointer group" onClick={() => document.getElementById('themeSelect').focus()}>
                                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 group-hover:text-indigo-600 transition-colors">Theme Pattern</span>

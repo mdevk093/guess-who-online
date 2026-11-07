@@ -1,14 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { useGame } from '../context/GameContext';
+import { useGame, decodeHtmlEntity } from '../context/GameContext';
 import { supabase } from '../supabaseClient';
 import Auth from './Auth';
 
 const Landing = () => {
-    const { createRoom, joinRoom, error, user, stats, continueAsGuest } = useGame();
+    const { createRoom, joinRoom, publicRooms, fetchPublicRooms, error, user, stats, continueAsGuest } = useGame();
     const [name, setName] = useState('');
     const [roomCode, setRoomCode] = useState('');
     const [isJoining, setIsJoining] = useState(false);
+    const [isViewingLobbies, setIsViewingLobbies] = useState(false);
+    const [isPublicRoom, setIsPublicRoom] = useState(true);
+    const [hideFullLobbies, setHideFullLobbies] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
+
+    useEffect(() => {
+        fetchPublicRooms();
+    }, [fetchPublicRooms]);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -34,7 +41,7 @@ const Landing = () => {
     const handlePlayAsGuest = () => {
         if (!name) return;
         continueAsGuest();
-        createRoom(name);
+        createRoom(name, isPublicRoom);
     };
 
     const handleJoinAsGuest = () => {
@@ -42,6 +49,16 @@ const Landing = () => {
         continueAsGuest();
         joinRoom(roomCode, name);
     };
+
+    const handleJoinPublicRoom = (targetRoomId) => {
+        if (!name) return;
+        continueAsGuest();
+        joinRoom(targetRoomId, name);
+    };
+
+    const displayedPublicRooms = hideFullLobbies
+        ? publicRooms.filter(r => !r.isFull)
+        : publicRooms;
 
     return (
         <div className="min-h-screen bg-slate-50 relative overflow-hidden flex flex-col">
@@ -129,8 +146,39 @@ const Landing = () => {
                             />
                         </div>
 
-                        {!isJoining ? (
+                        {!isJoining && !isViewingLobbies ? (
                             <div className="space-y-4 pt-2">
+                                {/* Public / Private Room Toggle */}
+                                <div className="flex items-center justify-between bg-slate-50 p-3 rounded-2xl border border-slate-200/80">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${isPublicRoom ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-200 text-slate-500'}`}>
+                                            {isPublicRoom ? (
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                            ) : (
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <span className="text-xs font-black text-slate-800 block leading-none">
+                                                {isPublicRoom ? 'Public Lobby' : 'Private Lobby'}
+                                            </span>
+                                            <span className="text-[10px] font-semibold text-slate-400">
+                                                {isPublicRoom ? 'Visible in public browser' : 'Invite code / link only'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsPublicRoom(!isPublicRoom)}
+                                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isPublicRoom
+                                            ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-200'
+                                            : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-100'
+                                            }`}
+                                    >
+                                        {isPublicRoom ? 'Public' : 'Private'}
+                                    </button>
+                                </div>
+
                                 <button
                                     onClick={handlePlayAsGuest}
                                     disabled={!name}
@@ -140,10 +188,120 @@ const Landing = () => {
                                     Create Room
                                 </button>
                                 <button
+                                    onClick={() => {
+                                        fetchPublicRooms();
+                                        setIsViewingLobbies(true);
+                                    }}
+                                    className="w-full py-4 border-2 border-indigo-100 bg-indigo-50/70 text-indigo-600 hover:bg-indigo-100/80 hover:border-indigo-200 rounded-2xl font-black text-lg transition-all active:scale-95 flex items-center justify-center gap-2.5"
+                                >
+                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    View Lobbies
+                                    {publicRooms.filter(r => !r.isFull).length > 0 && (
+                                        <span className="px-2 py-0.5 bg-indigo-600 text-white rounded-full text-xs font-black">
+                                            {publicRooms.filter(r => !r.isFull).length}
+                                        </span>
+                                    )}
+                                </button>
+                                <button
                                     onClick={() => setIsJoining(true)}
                                     className="w-full py-4 border-2 border-slate-100 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:border-slate-200 rounded-2xl font-black text-lg transition-all active:scale-95"
                                 >
-                                    Join an Existing Room
+                                    Join with Code
+                                </button>
+                            </div>
+                        ) : isViewingLobbies ? (
+                            <div className="space-y-4 pt-2 animate-in fade-in slide-in-from-bottom-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                        <h3 className="text-xs font-black text-slate-700 uppercase tracking-widest">
+                                            Public Lobbies ({displayedPublicRooms.length})
+                                        </h3>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setHideFullLobbies(!hideFullLobbies)}
+                                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all active:scale-95 ${hideFullLobbies
+                                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-100'
+                                            : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                                            }`}
+                                    >
+                                        {hideFullLobbies ? '✓ Open Only' : 'Hide Full'}
+                                    </button>
+                                </div>
+
+                                {displayedPublicRooms.length === 0 ? (
+                                    <div className="py-8 px-4 bg-slate-50/70 rounded-2xl border border-dashed border-slate-200 text-center">
+                                        <p className="text-xs font-bold text-slate-400">
+                                            {hideFullLobbies && publicRooms.length > 0
+                                                ? 'No open lobbies right now. Toggle filter to see full rooms.'
+                                                : 'No public lobbies active right now.'}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                                        {displayedPublicRooms.map((pubRoom) => {
+                                            const isJoinable = !pubRoom.isFull;
+                                            return (
+                                                <div
+                                                    key={pubRoom.roomId}
+                                                    className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all ${isJoinable
+                                                        ? 'bg-white border-slate-200 shadow-sm hover:border-indigo-200'
+                                                        : 'bg-slate-50/80 border-slate-100 opacity-60'
+                                                        }`}
+                                                >
+                                                    <div className="flex flex-col min-w-0 pr-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-sm font-black text-slate-800 truncate">
+                                                                {decodeHtmlEntity(pubRoom.hostName)}&apos;s Lobby
+                                                            </span>
+                                                            <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                                                {pubRoom.roomId}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 mt-1">
+                                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${isJoinable ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                                                {pubRoom.playerCount}/{pubRoom.maxPlayers || 2} Players
+                                                            </span>
+                                                            <span className="text-slate-300">•</span>
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                                                {pubRoom.gameState === 'LOBBY'
+                                                                    ? (isJoinable ? 'Waiting for Opponent' : 'Full Lobby')
+                                                                    : 'In Progress'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <button
+                                                        type="button"
+                                                        disabled={!isJoinable || !name}
+                                                        onClick={() => handleJoinPublicRoom(pubRoom.roomId)}
+                                                        title={!name ? 'Enter your Player Name above to join' : ''}
+                                                        className={`px-4 py-2 rounded-xl font-black text-xs uppercase tracking-widest shrink-0 transition-all ${isJoinable
+                                                            ? 'bg-indigo-600 hover:bg-indigo-700 disabled:opacity-30 text-white shadow-sm shadow-indigo-100 active:scale-95'
+                                                            : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                                                            }`}
+                                                    >
+                                                        {isJoinable ? 'Join' : 'Full'}
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {!name && displayedPublicRooms.some(r => !r.isFull) && (
+                                    <p className="text-[10px] font-bold text-amber-600 text-center">
+                                        ↑ Enter your Player Name above to join an open lobby
+                                    </p>
+                                )}
+
+                                <button
+                                    type="button"
+                                    onClick={() => setIsViewingLobbies(false)}
+                                    className="w-full py-4 border-2 border-slate-100 bg-slate-50 text-slate-600 rounded-2xl font-black transition-all active:scale-95 hover:bg-slate-100"
+                                >
+                                    Back
                                 </button>
                             </div>
                         ) : (

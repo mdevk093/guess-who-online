@@ -49,17 +49,38 @@ function sanitizeInput(str, maxLength) {
     return sanitized;
 }
 
-function broadcastPublicRooms(io) {
+function getPublicRoomsList() {
     const publicRooms = [];
-    rooms.forEach((room, roomId) => {
-        if (room.isPublic && room.gameState === 'LOBBY' && room.players.length === 1) {
-            publicRooms.push({
-                roomId: room.id,
-                hostName: room.players[0].name
-            });
+    rooms.forEach((room) => {
+        if (room.isPublic) {
+            const connectedPlayers = room.players.filter(p => p.connected);
+            const playerCount = connectedPlayers.length;
+            if (playerCount > 0) {
+                publicRooms.push({
+                    roomId: room.id,
+                    hostName: room.players[0]?.name || 'Host',
+                    playerCount,
+                    maxPlayers: 2,
+                    isFull: playerCount >= 2 || room.gameState !== 'LOBBY',
+                    gameState: room.gameState
+                });
+            }
         }
     });
-    io.emit('public_rooms_update', publicRooms);
+
+    // Sort open lobbies (not full & in LOBBY) to the top
+    publicRooms.sort((a, b) => {
+        if (a.isFull !== b.isFull) {
+            return a.isFull ? 1 : -1;
+        }
+        return 0;
+    });
+
+    return publicRooms;
+}
+
+function broadcastPublicRooms(io) {
+    io.emit('public_rooms_update', getPublicRoomsList());
 }
 
 /**
@@ -152,17 +173,20 @@ function startRoomTimer(io, roomId) {
 function handleSocketEvents(io, socket) {
     // Get Public Rooms
     socket.on('get_public_rooms', () => {
-        if (!checkRateLimit(socket.id, 'get_public_rooms', 2000)) return;
-        const publicRooms = [];
-        rooms.forEach((room, roomId) => {
-            if (room.isPublic && room.gameState === 'LOBBY' && room.players.length === 1) {
-                publicRooms.push({
-                    roomId: room.id,
-                    hostName: room.players[0].name
-                });
-            }
-        });
-        socket.emit('public_rooms_update', publicRooms);
+        if (!checkRateLimit(socket.id, 'get_public_rooms', 500)) return;
+        socket.emit('public_rooms_update', getPublicRoomsList());
+    });
+
+    // Toggle Room Public/Private Visibility (FR-ROOM-04)
+    socket.on('toggle_room_public', ({ roomId, isPublic }) => {
+        if (!checkRateLimit(socket.id, 'game_action', 300)) return;
+        const room = rooms.get(roomId);
+        if (room && room.players[0]?.id === socket.id) {
+            room.isPublic = Boolean(isPublic);
+            emitRoomState(io, room, 'room_updated');
+            broadcastPublicRooms(io);
+            console.log(`Room ${roomId} visibility set to Public: ${room.isPublic}`);
+        }
     });
     // Create Room
     socket.on('create_room', async ({ playerName, accessToken, isPublic = false }) => {
@@ -237,6 +261,7 @@ function handleSocketEvents(io, socket) {
 
             socket.join(safeRoomId);
             emitRoomState(io, room, 'room_updated');
+            if (room.isPublic) broadcastPublicRooms(io);
             return;
         }
 
@@ -259,6 +284,7 @@ function handleSocketEvents(io, socket) {
         room.players.push(newPlayer);
         socket.join(safeRoomId);
         emitRoomState(io, room, 'room_updated');
+        io.to(safeRoomId).emit('player_joined_sound', { playerName: safePlayerName });
         console.log(`${safePlayerName} joined room: ${safeRoomId}`);
         if (room.isPublic) broadcastPublicRooms(io);
     });
@@ -305,13 +331,14 @@ function handleSocketEvents(io, socket) {
                         clearRoomTimer(roomId);
                         roomCleanupTimers.delete(roomId);
                         console.log(`Room ${roomId} terminated after grace period.`);
+                        if (currentRoom.isPublic) broadcastPublicRooms(io);
                     }
                 }, 20000); // 20 seconds grace period
 
                 roomCleanupTimers.set(roomId, cleanupTimeout);
 
                 // If it was a public room and a player disconnected, broadcast update
-                if (room.isPublic && room.gameState === 'LOBBY') {
+                if (room.isPublic) {
                     broadcastPublicRooms(io);
                 }
             }

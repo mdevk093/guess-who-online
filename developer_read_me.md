@@ -110,11 +110,28 @@ All critical game states (eliminated cards, current turn, guess limits) are stor
 
 ---
 
+## 🌐 Public Rooms Browser & Lobby Audio (`FR-ROOM-04` & `FR-GAME-06`)
+
+### 1. Public Lobbies Discovery & Filtering (`FR-ROOM-04`)
+- **Location**: `getPublicRoomsList()` and `broadcastPublicRooms(io)` in `server/handlers/socketHandler.js`, `Landing.jsx`, and `CharacterSelect.jsx`.
+- **Visibility Toggle**: Players can toggle a room between **Public** and **Private** before creating a room on `Landing.jsx` or dynamically inside the lobby header/settings modal via `toggle_room_public`.
+- **Sorting & Filtering**:
+  - Clicking **View Lobbies** on the landing screen opens the live public lobby browser.
+  - `getPublicRoomsList()` returns all active public lobbies and automatically sorts open 1-player lobbies (`isFull: false`) to the top above full/in-progress lobbies.
+  - Players can click **Hide Full / ✓ Open Only** to filter out full rooms and click **Join** next to any open lobby.
+
+### 2. Lobby Join Audio Notification (`FR-GAME-06`)
+- **Location**: `playJoinSound` in `client/src/context/GameContext.jsx` and `player_joined_sound` in `server/handlers/socketHandler.js`.
+- **Mechanism**: When a second player joins a lobby, the server emits `player_joined_sound` to the room, triggering a two-tone Web Audio API chime (`C5 → G5`).
+
+---
+
 ## 📋 Changelog of Recent Fixes & Commits
 
 | Date | Commit / Scope | Summary of Changes |
 | :--- | :--- | :--- |
-| **2026-11-06** | `NFR-REL-01`, `NFR-REL-02` & `FR-ROOM-05` | • Persisted `eliminatedIds` across both server player state and `sessionStorage`/`localStorage` (`eliminated_ids_<roomId>`) so browser refreshes restore flipped cards.<br>• Fixed auto-rejoin race condition on page refresh by triggering `attemptAutoRejoin` directly inside `newSocket.on('connect')` and isolating per-tab `player_name` via `sessionStorage`.<br>• Redacted opponent's `eliminatedIds` array in `sanitizeRoomForPlayer` so opponents only see `eliminatedCount`.<br>• Auto-recorded wrong guess eliminations server-side and cleared stale `eliminatedIds` on rematch/room exit. |
+| **2026-11-06** | `FR-ROOM-04` & `FR-GAME-06` | • Implemented **View Lobbies** browser in `Landing.jsx` showing live public lobbies with open lobbies sorted to the top and a **Hide Full** filter toggle.<br>• Added Public/Private room toggles on room creation (`Landing.jsx`) and inside the lobby (`CharacterSelect.jsx` via `toggle_room_public`).<br>• Added Web Audio API lobby join chime (`playJoinSound` on `player_joined_sound`). |
+| **2026-11-06** | `4e9c6be` (`NFR-REL-01`, `NFR-REL-02` & `FR-ROOM-05`) | • Persisted `eliminatedIds` across both server player state and `sessionStorage`/`localStorage` (`eliminated_ids_<roomId>`) so browser refreshes restore flipped cards.<br>• Fixed auto-rejoin race condition on page refresh by triggering `attemptAutoRejoin` directly inside `newSocket.on('connect')` and isolating per-tab `player_name` via `sessionStorage`.<br>• Redacted opponent's `eliminatedIds` array in `sanitizeRoomForPlayer` so opponents only see `eliminatedCount`.<br>• Auto-recorded wrong guess eliminations server-side and cleared stale `eliminatedIds` on rematch/room exit. |
 | **2026-11-06** | `6034bb2` (`NFR-SEC-03` & `NFR-SEC-04`) | • Added `sanitizeRoomForPlayer` & `emitRoomState` to redact opponent's secret character from WebSocket payloads until `GAME_OVER`.<br>• Enforced server-side active-turn checks on `make_guess` and `end_turn`.<br>• Verified Supabase `access_token` JWTs server-side on `create_room` and `join_room` to prevent `userId` spoofing.<br>• Removed duplicate client-side turn-end trigger on timer expiration in `GameBoard.jsx`. |
 | **2026-11-06** | `37c25c2` | • Reduced player disconnection grace period (`roomCleanupTimer`) from 60 seconds to **20 seconds**. |
 | **2026-11-06** | `e375cc0` | • Consolidated UI updates across `Landing.jsx`, `CharacterSelect.jsx`, `GameBoard.jsx`, `Chat.jsx`, `Auth.jsx`, and `GameContext.jsx`. |
