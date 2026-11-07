@@ -81,3 +81,36 @@ The game is designed to be "refresh-proof," allowing players to stay in their lo
 
 ### Data Synchronization
 All critical game states (eliminated cards, current turn, guess limits) are stored in the server's `rooms` Map, ensured that a reconnected player instantly sees the board exactly as they left it.
+
+---
+
+## 🔒 Anti-Cheat & Server-Side Authorization (`NFR-SEC-03` & `NFR-SEC-04`)
+
+### 1. Secret Character Redaction (`NFR-SEC-03`)
+- **Location**: `sanitizeRoomForPlayer(room, recipientSocketId)` and `emitRoomState(io, room, eventName)` in `server/handlers/socketHandler.js`.
+- **Problem Prevented**: Previously, broadcasting the raw `room` object to all sockets in a room exposed `opponent.selectedCharacter` in WebSocket network frames (inspectable via browser DevTools).
+- **Mechanism**: Every state broadcast (`room_created`, `room_updated`, `game_started`, `start_playing`, `game_over`) sends an individually sanitized copy of `room` to each connected player:
+  - A player always receives their own full `selectedCharacter`.
+  - Their opponent's `selectedCharacter` is redacted to `{ hidden: true }` while `gameState !== 'GAME_OVER'`.
+  - Once `gameState === 'GAME_OVER'`, the full character objects are revealed to both players.
+
+### 2. Turn, Phase & Host Authorization (`NFR-SEC-04`)
+- **Turn Ownership Validation**: `make_guess` and `end_turn` verify on the server that `room.players[room.turn].id === socket.id` before processing. Out-of-turn socket emissions are ignored.
+- **Single Authoritative Turn Timer**: Turn timeouts are handled exclusively by the server's `startRoomTimer` in `socketHandler.js` (removing the duplicate client-side `endTurn()` trigger on timer expiry in `GameBoard.jsx` that could cause double turn skips).
+- **Phase & Readiness Guards**:
+  - `start_game` requires the sender to be the Host (`room.players[0].id === socket.id`) and `room.gameState === 'LOBBY'`.
+  - `select_character` requires `room.gameState === 'SELECTING'` and `!player.isReady` so a locked-in character cannot be swapped mid-match.
+
+### 3. Cryptographic Identity Verification (Anti-Spoofing)
+- **Location**: `getVerifiedUserId(token)` in `server/handlers/socketHandler.js` and `create_room` / `join_room` in `client/src/context/GameContext.jsx`.
+- **Mechanism**: Instead of trusting a raw `userId` string sent from the client, the client passes its Supabase `session.access_token` (JWT). The server verifies the token with `supabase.auth.getUser(accessToken)` and extracts the authentic `user.id` before recording career wins/losses or re-binding a disconnected session.
+
+---
+
+## 📋 Changelog of Recent Fixes & Commits
+
+| Date | Commit / Scope | Summary of Changes |
+| :--- | :--- | :--- |
+| **2026-11-06** | `NFR-SEC-03` & `NFR-SEC-04` | • Added `sanitizeRoomForPlayer` & `emitRoomState` to redact opponent's secret character from WebSocket payloads until `GAME_OVER`.<br>• Enforced server-side active-turn checks on `make_guess` and `end_turn`.<br>• Verified Supabase `access_token` JWTs server-side on `create_room` and `join_room` to prevent `userId` spoofing.<br>• Removed duplicate client-side turn-end trigger on timer expiration in `GameBoard.jsx`. |
+| **2026-11-06** | `37c25c2` | • Reduced player disconnection grace period (`roomCleanupTimer`) from 60 seconds to **20 seconds**. |
+| **2026-11-06** | `e375cc0` | • Consolidated UI updates across `Landing.jsx`, `CharacterSelect.jsx`, `GameBoard.jsx`, `Chat.jsx`, `Auth.jsx`, and `GameContext.jsx`. |

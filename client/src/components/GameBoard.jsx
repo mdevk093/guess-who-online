@@ -82,22 +82,13 @@ const GameBoard = () => {
             const elapsed = Date.now() - room.turnStartTime;
             const remaining = Math.max(0, timerLimitMs - elapsed);
             setTimeLeft(Math.ceil(remaining / 1000));
-
-            // Auto-end turn if timer hits zero and it's my turn
-            if (remaining <= 0 && myTurn && !isGameOver) {
-                const nextPlayer = room.players.find(p => p.id !== socket.id);
-                sendMessage({
-                    type: 'DIVIDER',
-                    text: `Timer ran out, it's ${nextPlayer?.name}'s turn`
-                });
-                endTurn();
-            }
+            // Server-side startRoomTimer authoritatively advances the turn and posts the divider on timeout
         };
 
         updateTimer();
         const interval = setInterval(updateTimer, 1000);
         return () => clearInterval(interval);
-    }, [room.turnStartTime, room.settings?.timerLimit, myTurn, isGameOver, room.gameState, endTurn]);
+    }, [room.turnStartTime, room.settings?.timerLimit, isGameOver, room.gameState]);
 
     const formatTime = (seconds) => {
         if (seconds === null) return null;

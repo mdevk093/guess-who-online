@@ -156,16 +156,20 @@ export const GameProvider = ({ children }) => {
     const hasAttemptedRejoinRef = React.useRef(false);
 
     useEffect(() => {
-        if (socket && socket.connected && user && !room && !hasAttemptedRejoinRef.current) {
+        if (socket && socket.connected && !room && !hasAttemptedRejoinRef.current) {
             const lastRoomId = localStorage.getItem('last_room_id');
             const savedName = localStorage.getItem('player_name');
             if (lastRoomId && savedName) {
-                console.log("🔄 Auto-rejoining room:", lastRoomId, "with user:", user.id);
-                socket.emit('join_room', { roomId: lastRoomId, playerName: savedName, userId: user.id });
+                console.log("🔄 Auto-rejoining room:", lastRoomId);
+                socket.emit('join_room', {
+                    roomId: lastRoomId,
+                    playerName: savedName,
+                    accessToken: session?.access_token || null
+                });
                 hasAttemptedRejoinRef.current = true;
             }
         }
-    }, [socket, user, room]);
+    }, [socket, session, room]);
 
     useEffect(() => {
         const newSocket = io(SOCKET_URL);
@@ -249,13 +253,13 @@ export const GameProvider = ({ children }) => {
     const createRoom = (name) => {
         setPlayerName(name);
         localStorage.setItem('player_name', name);
-        socket.emit('create_room', { playerName: name, userId: user?.id });
+        socket.emit('create_room', { playerName: name, accessToken: session?.access_token || null });
     };
 
     const joinRoom = (roomId, name) => {
         setPlayerName(name);
         localStorage.setItem('player_name', name);
-        socket.emit('join_room', { roomId, playerName: name, userId: user?.id });
+        socket.emit('join_room', { roomId, playerName: name, accessToken: session?.access_token || null });
     };
 
     const startGame = React.useCallback((characters, settings) => {

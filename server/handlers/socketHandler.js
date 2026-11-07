@@ -62,6 +62,52 @@ function broadcastPublicRooms(io) {
     io.emit('public_rooms_update', publicRooms);
 }
 
+/**
+ * Returns a copy of the room state customized for a specific recipient socket.
+ * Redacts the opponent's selectedCharacter until GAME_OVER (NFR-SEC-03).
+ */
+function sanitizeRoomForPlayer(room, recipientSocketId) {
+    if (!room) return room;
+    const isGameOver = room.gameState === 'GAME_OVER';
+    return {
+        ...room,
+        players: room.players.map(p => ({
+            ...p,
+            selectedCharacter: (isGameOver || p.id === recipientSocketId)
+                ? p.selectedCharacter
+                : (p.selectedCharacter ? { hidden: true } : null)
+        }))
+    };
+}
+
+/**
+ * Emits a room event to every connected player in the room with their
+ * individually sanitized room payload.
+ */
+function emitRoomState(io, room, eventName = 'room_updated') {
+    if (!room) return;
+    room.players.forEach(p => {
+        if (p.connected) {
+            io.to(p.id).emit(eventName, sanitizeRoomForPlayer(room, p.id));
+        }
+    });
+}
+
+/**
+ * Verifies a Supabase JWT access token on the server to prevent userId spoofing (NFR-SEC-04).
+ */
+async function getVerifiedUserId(token) {
+    if (!token || typeof token !== 'string') return null;
+    try {
+        const { data, error } = await supabase.auth.getUser(token);
+        if (error || !data?.user) return null;
+        return data.user.id;
+    } catch (err) {
+        console.error('Error verifying user token:', err);
+        return null;
+    }
+}
+
 function clearRoomTimer(roomId) {
     if (roomTimers.has(roomId)) {
         clearTimeout(roomTimers.get(roomId));
@@ -93,7 +139,7 @@ function startRoomTimer(io, roomId) {
         };
         currentRoom.chat.push(msgData);
 
-        io.to(roomId).emit('room_updated', currentRoom);
+        emitRoomState(io, currentRoom, 'room_updated');
 
         // Start timer for the next player
         startRoomTimer(io, roomId);
@@ -118,10 +164,11 @@ function handleSocketEvents(io, socket) {
         socket.emit('public_rooms_update', publicRooms);
     });
     // Create Room
-    socket.on('create_room', ({ playerName, userId, isPublic = false }) => {
+    socket.on('create_room', async ({ playerName, accessToken, isPublic = false }) => {
         if (!checkRateLimit(socket.id, 'create_room', 3000)) {
             return socket.emit('error', 'Please wait a few seconds before creating another room.');
         }
+        const verifiedUserId = await getVerifiedUserId(accessToken);
         const safePlayerName = sanitizeInput(playerName, 20);
         const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
         const room = {
@@ -129,7 +176,7 @@ function handleSocketEvents(io, socket) {
             isPublic,
             players: [{
                 id: socket.id,
-                userId: userId, // Store Supabase UID
+                userId: verifiedUserId, // Verified Supabase UID via JWT
                 name: safePlayerName,
                 isHost: true,
                 selectedCharacter: null,
@@ -147,16 +194,17 @@ function handleSocketEvents(io, socket) {
         };
         rooms.set(roomId, room);
         socket.join(roomId);
-        socket.emit('room_created', { roomId, room });
+        socket.emit('room_created', { roomId, room: sanitizeRoomForPlayer(room, socket.id) });
         console.log(`Room created: ${roomId} by ${safePlayerName} (Public: ${isPublic})`);
         if (isPublic) broadcastPublicRooms(io);
     });
 
     // Join Room
-    socket.on('join_room', ({ roomId, playerName, userId }) => {
+    socket.on('join_room', async ({ roomId, playerName, accessToken }) => {
         if (!checkRateLimit(socket.id, 'join_room', 2000)) {
             return socket.emit('error', 'Please wait before joining another room.');
         }
+        const verifiedUserId = await getVerifiedUserId(accessToken);
         const safeRoomId = sanitizeInput(roomId, 8).toUpperCase();
         const safePlayerName = sanitizeInput(playerName, 20);
 
@@ -167,14 +215,14 @@ function handleSocketEvents(io, socket) {
 
         // Check for reconnection
         const existingPlayer = room.players.find(p =>
-            (userId && p.userId === userId) || (p.name === safePlayerName && !p.connected)
+            (verifiedUserId && p.userId === verifiedUserId) || (p.name === safePlayerName && !p.connected)
         );
 
         if (existingPlayer) {
             console.log(`Player ${safePlayerName} reconnected to room ${safeRoomId}`);
             existingPlayer.id = socket.id;
             existingPlayer.connected = true;
-            if (userId) existingPlayer.userId = userId; // Update userId if player is now logged in
+            if (verifiedUserId) existingPlayer.userId = verifiedUserId; // Update verified userId if player is now logged in
 
             // Clear any cleanup timers for this room if both players are back
             if (room.players.every(p => p.connected)) {
@@ -185,7 +233,7 @@ function handleSocketEvents(io, socket) {
             }
 
             socket.join(safeRoomId);
-            io.to(safeRoomId).emit('room_updated', room);
+            emitRoomState(io, room, 'room_updated');
             return;
         }
 
@@ -195,7 +243,7 @@ function handleSocketEvents(io, socket) {
 
         const newPlayer = {
             id: socket.id,
-            userId: userId, // Store Supabase UID
+            userId: verifiedUserId, // Verified Supabase UID via JWT
             name: safePlayerName,
             isHost: false,
             selectedCharacter: null,
@@ -205,7 +253,7 @@ function handleSocketEvents(io, socket) {
 
         room.players.push(newPlayer);
         socket.join(safeRoomId);
-        io.to(safeRoomId).emit('room_updated', room);
+        emitRoomState(io, room, 'room_updated');
         console.log(`${safePlayerName} joined room: ${safeRoomId}`);
         if (room.isPublic) broadcastPublicRooms(io);
     });
@@ -241,7 +289,7 @@ function handleSocketEvents(io, socket) {
                 player.connected = false;
 
                 console.log(`Player ${player.name} disconnected from room ${roomId}. Waiting for reconnection...`);
-                io.to(roomId).emit('room_updated', room);
+                emitRoomState(io, room, 'room_updated');
 
                 // Start grace period cleanup
                 const cleanupTimeout = setTimeout(() => {
@@ -269,11 +317,11 @@ function handleSocketEvents(io, socket) {
     socket.on('start_game', ({ roomId, characters, settings }) => {
         if (!checkRateLimit(socket.id, 'game_action', 500)) return;
         const room = rooms.get(roomId);
-        if (room && room.players[0].id === socket.id) {
+        if (room && room.players[0]?.id === socket.id && room.gameState === 'LOBBY') {
             room.characters = characters;
             room.settings = settings || { timerLimit: null };
             room.gameState = 'SELECTING';
-            io.to(roomId).emit('game_started', room);
+            emitRoomState(io, room, 'game_started');
             if (room.isPublic) broadcastPublicRooms(io);
         }
     });
@@ -282,9 +330,9 @@ function handleSocketEvents(io, socket) {
     socket.on('select_character', ({ roomId, character }) => {
         if (!checkRateLimit(socket.id, 'game_action', 500)) return;
         const room = rooms.get(roomId);
-        if (room) {
+        if (room && room.gameState === 'SELECTING') {
             const player = room.players.find(p => p.id === socket.id);
-            if (player) {
+            if (player && !player.isReady) {
                 player.selectedCharacter = character;
                 player.isReady = true;
 
@@ -308,10 +356,10 @@ function handleSocketEvents(io, socket) {
                     });
 
                     room.turnStartTime = Date.now();
-                    io.to(roomId).emit('start_playing', room);
+                    emitRoomState(io, room, 'start_playing');
                     startRoomTimer(io, roomId);
                 } else {
-                    io.to(roomId).emit('room_updated', room);
+                    emitRoomState(io, room, 'room_updated');
                 }
             }
         }
@@ -385,7 +433,12 @@ function handleSocketEvents(io, socket) {
         if (!checkRateLimit(socket.id, 'guess', 1000)) return;
         const room = rooms.get(roomId);
         if (room && room.gameState === 'PLAYING') {
+            // Server-side turn authorization (NFR-SEC-04)
+            const activePlayer = room.players[room.turn];
+            if (!activePlayer || activePlayer.id !== socket.id) return;
+
             const opponent = room.players.find(p => p.id !== socket.id);
+            if (!opponent || !opponent.selectedCharacter) return;
             const isCorrect = character.name === opponent.selectedCharacter.name;
 
             if (isCorrect) {
@@ -395,7 +448,7 @@ function handleSocketEvents(io, socket) {
                     correctCharacter: opponent.selectedCharacter
                 };
 
-                io.to(roomId).emit('game_over', room);
+                emitRoomState(io, room, 'game_over');
                 clearRoomTimer(roomId);
 
                 // Record Win/Loss in Supabase if players are logged in
@@ -444,7 +497,7 @@ function handleSocketEvents(io, socket) {
                             correctCharacter: opponent.selectedCharacter,
                             message: `${guesser.name} ran out of guesses!`
                         };
-                        io.to(roomId).emit('game_over', room);
+                        emitRoomState(io, room, 'game_over');
                         clearRoomTimer(roomId);
 
                         // Record Win/Loss (Opponent wins by default)
@@ -476,7 +529,7 @@ function handleSocketEvents(io, socket) {
 
                 room.turn = (room.turn + 1) % room.players.length;
                 room.turnStartTime = Date.now();
-                io.to(roomId).emit('room_updated', room);
+                emitRoomState(io, room, 'room_updated');
                 startRoomTimer(io, roomId);
             }
             console.log(`Guess made in room ${roomId}. Correct: ${isCorrect}`);
@@ -487,7 +540,7 @@ function handleSocketEvents(io, socket) {
     socket.on('restart_game', ({ roomId }) => {
         if (!checkRateLimit(socket.id, 'game_action', 500)) return;
         const room = rooms.get(roomId);
-        if (room) {
+        if (room && room.players.some(p => p.id === socket.id)) {
             clearRoomTimer(roomId);
             room.gameState = 'LOBBY'; // Allow re-selecting mode/timer
             room.characters = [];
@@ -506,7 +559,7 @@ function handleSocketEvents(io, socket) {
                 timestamp: new Date().toLocaleTimeString()
             });
 
-            io.to(roomId).emit('room_updated', room);
+            emitRoomState(io, room, 'room_updated');
             console.log(`Room ${roomId} restarted`);
             if (room.isPublic) broadcastPublicRooms(io);
         }
@@ -517,9 +570,13 @@ function handleSocketEvents(io, socket) {
         if (!checkRateLimit(socket.id, 'game_action', 500)) return;
         const room = rooms.get(roomId);
         if (room && room.gameState === 'PLAYING') {
+            // Server-side turn authorization (NFR-SEC-04)
+            const activePlayer = room.players[room.turn];
+            if (!activePlayer || activePlayer.id !== socket.id) return;
+
             room.turn = (room.turn + 1) % room.players.length;
             room.turnStartTime = Date.now();
-            io.to(roomId).emit('room_updated', room);
+            emitRoomState(io, room, 'room_updated');
             startRoomTimer(io, roomId);
             console.log(`Turn ended in room ${roomId}. New turn: ${room.turn}`);
         }
@@ -533,7 +590,7 @@ function handleSocketEvents(io, socket) {
             const player = room.players.find(p => p.id === socket.id);
             if (player) {
                 player.eliminatedCount = count;
-                io.to(roomId).emit('room_updated', room);
+                emitRoomState(io, room, 'room_updated');
             }
         }
     });
