@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useGame } from '../context/GameContext';
 
-const Auth = ({ onAuthSuccess }) => {
+const Auth = ({ onAuthSuccess, isModal = false }) => {
     const { continueAsGuest } = useGame();
     const [loading, setLoading] = useState(false);
     // ... no changes to other states
@@ -51,8 +51,8 @@ const Auth = ({ onAuthSuccess }) => {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-4">
-            <div className="max-w-md w-full bg-white rounded-3xl p-8 shadow-xl border border-slate-100">
+        <div className={`flex flex-col items-center justify-center ${isModal ? 'p-0 w-full' : 'min-h-screen bg-slate-50 p-4'}`}>
+            <div className={`w-full bg-white rounded-3xl p-8 ${isModal ? '' : 'max-w-md shadow-xl border border-slate-100'}`}>
                 <div className="flex flex-col items-center mb-8">
                     <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100 mb-4">
                         <span className="text-white text-2xl font-black italic">?</span>
@@ -121,18 +121,22 @@ const Auth = ({ onAuthSuccess }) => {
                         {isSignUp ? 'Already have an account? Log In' : "Don't have an account? Sign Up"}
                     </button>
 
-                    <div className="w-full flex items-center gap-4 py-2">
-                        <div className="flex-1 h-[1px] bg-slate-100" />
-                        <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">OR</span>
-                        <div className="flex-1 h-[1px] bg-slate-100" />
-                    </div>
+                    {!isModal && (
+                        <>
+                            <div className="w-full flex items-center gap-4 py-2">
+                                <div className="flex-1 h-[1px] bg-slate-100" />
+                                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">OR</span>
+                                <div className="flex-1 h-[1px] bg-slate-100" />
+                            </div>
 
-                    <button
-                        onClick={continueAsGuest}
-                        className="text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors"
-                    >
-                        Continue as Guest →
-                    </button>
+                            <button
+                                onClick={continueAsGuest}
+                                className="text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors"
+                            >
+                                Continue as Guest →
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
         </div>

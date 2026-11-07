@@ -8,6 +8,16 @@ export const useGame = () => useContext(GameContext);
 
 const SOCKET_URL = import.meta.env.VITE_SERVER_URL || (import.meta.env.PROD ? window.location.origin : 'http://localhost:3001');
 
+// Helper to decode HTML entities the server sanitized, since React escapes raw strings properly anyway
+export const decodeHtmlEntity = function (str) {
+    if (!str) return str;
+    return str.replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'");
+};
+
 export const GameProvider = ({ children }) => {
     const [socket, setSocket] = useState(null);
     const [room, setRoom] = useState(null);
@@ -105,43 +115,43 @@ export const GameProvider = ({ children }) => {
         if (room && socket) {
             socket.emit('send_message', { roomId: room.id, message });
         }
-    }, [room?.id, socket]);
+    }, [room, socket]);
 
     const sendTypingStatus = React.useCallback((isTyping) => {
         if (room && socket) {
             socket.emit(isTyping ? 'typing' : 'stop_typing', { roomId: room.id });
         }
-    }, [room?.id, socket]);
+    }, [room, socket]);
 
     const makeGuess = React.useCallback((character) => {
         if (room && socket) {
             socket.emit('make_guess', { roomId: room.id, character });
         }
-    }, [room?.id, socket]);
+    }, [room, socket]);
 
     const restartGame = React.useCallback(() => {
         if (room && socket) {
             socket.emit('restart_game', { roomId: room.id });
         }
-    }, [room?.id, socket]);
+    }, [room, socket]);
 
     const endTurn = React.useCallback(() => {
         if (room && socket) {
             socket.emit('end_turn', { roomId: room.id });
         }
-    }, [room?.id, socket]);
+    }, [room, socket]);
 
     const updateEliminatedCount = React.useCallback((count) => {
         if (room && socket) {
             socket.emit('update_eliminated_count', { roomId: room.id, count });
         }
-    }, [room?.id, socket]);
+    }, [room, socket]);
 
     const reportPlayer = React.useCallback((message) => {
         if (room && socket) {
             socket.emit('report_user', { roomId: room.id, message, reporterName: playerName });
         }
-    }, [room?.id, socket, playerName]);
+    }, [room, socket, playerName]);
 
     const hasAttemptedRejoinRef = React.useRef(false);
 
@@ -252,20 +262,20 @@ export const GameProvider = ({ children }) => {
         if (room && socket) {
             socket.emit('start_game', { roomId: room.id, characters, settings });
         }
-    }, [room?.id, socket]);
+    }, [room, socket]);
 
     const selectCharacter = React.useCallback((character) => {
         if (room && socket) {
             socket.emit('select_character', { roomId: room.id, character });
         }
-    }, [room?.id, socket]);
+    }, [room, socket]);
 
     const leaveRoom = React.useCallback(() => {
         if (room && socket) {
             socket.emit('leave_room', { roomId: room.id });
             setRoom(null);
         }
-    }, [room?.id, socket]);
+    }, [room, socket]);
 
     useEffect(() => {
         if (room?.gameState === 'PLAYING') {

@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useGame } from '../context/GameContext';
-import { supabase } from '../supabaseClient';
 
 const CharacterSelect = () => {
-    const { room, playerName, startGame, selectCharacter, socket, leaveRoom, user } = useGame();
+    const { room, playerName, startGame, selectCharacter, socket, leaveRoom } = useGame();
     const [mode, setMode] = useState('default'); // 'default', 'custom', or one of the preset keys
     const [presets, setPresets] = useState({});
     const [localCharacters, setLocalCharacters] = useState([]);
     const [selectedId, setSelectedId] = useState(null);
     const [timerEnabled, setTimerEnabled] = useState(false);
     const [timerLimit, setTimerLimit] = useState(2); // Default 2 minutes
-    const [guessLimit, setGuessLimit] = useState(null); // null, 1, or 3
+    const [guessLimit, setGuessLimit] = useState(null); // null means infinite
     const [uploading, setUploading] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [copied, setCopied] = useState(false);
     const isHost = room.players.find(p => p.id === socket.id)?.isHost;
 
     useEffect(() => {
@@ -19,18 +20,6 @@ const CharacterSelect = () => {
         fetch('/presets')
             .then(res => res.json())
             .then(data => setPresets(data));
-
-        // Load cached custom characters
-        const cached = localStorage.getItem('custom_characters');
-        if (cached) {
-            try {
-                const parsed = JSON.parse(cached);
-                setLocalCharacters(parsed);
-                setMode('custom');
-            } catch (e) {
-                console.error("Failed to load cached characters", e);
-            }
-        }
     }, []);
 
     useEffect(() => {
@@ -38,53 +27,28 @@ const CharacterSelect = () => {
             fetch('/defaultCharacters.json')
                 .then(res => res.json())
                 .then(data => setLocalCharacters(data));
-        } else if (mode === 'custom') {
-            const cached = localStorage.getItem('custom_characters');
-            if (cached) setLocalCharacters(JSON.parse(cached));
         } else if (presets[mode]) {
             setLocalCharacters(presets[mode]);
         }
     }, [mode, presets]);
 
-    const handleFileUpload = async (e) => {
+    const handleFileUpload = (e) => {
         const files = Array.from(e.target.files);
         if (files.length < 16 || files.length > 24) {
             alert("Please upload between 16 and 24 pictures.");
             return;
         }
 
+        const customChars = files.map((file, index) => ({
+            id: index + 1,
+            name: `Person ${index + 1}`,
+            image: URL.createObjectURL(file)
+        }));
         setUploading(true);
-        try {
-            const uploadedChars = await Promise.all(files.map(async (file, index) => {
-                const fileExt = file.name.split('.').pop();
-                const fileName = `${user?.id || 'anon'}/${Date.now()}-${index}.${fileExt}`;
-                const filePath = `characters/${fileName}`;
-
-                const { error: uploadError } = await supabase.storage
-                    .from('character-images')
-                    .upload(filePath, file);
-
-                if (uploadError) throw uploadError;
-
-                const { data: { publicUrl } } = supabase.storage
-                    .from('character-images')
-                    .getPublicUrl(filePath);
-
-                return {
-                    id: index + 1,
-                    name: `Person ${index + 1}`,
-                    image: publicUrl
-                };
-            }));
-
-            setLocalCharacters(uploadedChars);
-            localStorage.setItem('custom_characters', JSON.stringify(uploadedChars));
-        } catch (error) {
-            console.error("Upload error:", error);
-            alert("Failed to upload images. Check console for details.");
-        } finally {
+        setTimeout(() => {
+            setLocalCharacters(customChars);
             setUploading(false);
-        }
+        }, 500);
     };
 
     const handleStart = () => {
@@ -94,6 +58,14 @@ const CharacterSelect = () => {
                 guessLimit: guessLimit
             });
         }
+    };
+
+    const copyJoinLink = () => {
+        const joinLink = `${window.location.origin}?room=${room.id}`;
+        navigator.clipboard.writeText(joinLink).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        });
     };
 
     const charactersToDisplay = (room.characters && room.characters.length > 0) ? room.characters : localCharacters;
@@ -106,172 +78,135 @@ const CharacterSelect = () => {
 
     return (
         <div className="flex flex-col h-screen bg-slate-50 text-slate-900 overflow-hidden">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-6 bg-white border-b border-slate-100 shadow-sm gap-4">
-                <div className="flex items-center gap-4">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100">
-                        <span className="text-white text-lg sm:text-xl font-black italic">?</span>
-                    </div>
-                    <div>
-                        <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight leading-tight">Character Selection</h2>
-                        <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">Room: <span className="text-indigo-600 font-black">{room.id}</span></p>
-                    </div>
-                </div>
+            {/* Header / Game Settings */}
+            <div className="flex flex-col p-6 bg-white border-b border-slate-100 shadow-sm gap-6">
 
-                {isHost && room.gameState === 'LOBBY' && (
-                    <div className="flex flex-wrap items-center justify-start sm:justify-end gap-3 sm:gap-4 animate-in fade-in slide-in-from-top-4 w-full sm:w-auto">
-                        <div className="flex flex-col items-start sm:items-center flex-1 sm:flex-none">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Select Theme</span>
-                            <select
-                                value={mode}
-                                onChange={(e) => setMode(e.target.value)}
-                                className="w-full sm:w-auto bg-slate-50 text-slate-700 px-4 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-4 focus:ring-indigo-100 font-bold transition-all text-sm"
-                            >
-                                <option value="default">Default</option>
-                                <option value="marvel_dc">Marvel & DC</option>
-                                <option value="youtubers">YouTubers</option>
-                                <option value="fruits_veg">Fruits & Veg</option>
-                                <option value="anime">Anime</option>
-                                <option value="countries">Countries</option>
-                                <option value="custom">Custom</option>
-                            </select>
-                        </div>
-
-                        {/* Turn Timer Configuration */}
-                        <div className="flex flex-col items-start sm:items-center sm:border-l sm:border-slate-100 sm:pl-4 sm:pl-6 flex-1 sm:flex-none">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Turn Timer</span>
-                            <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200 w-full sm:w-auto justify-center sm:justify-start">
-                                <button
-                                    onClick={() => setTimerEnabled(!timerEnabled)}
-                                    className={`px-3 py-1 rounded-lg text-[10px] font-black tracking-widest transition-all ${timerEnabled ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
-                                >
-                                    {timerEnabled ? "ON" : "OFF"}
-                                </button>
-                                {timerEnabled && (
-                                    <div className="flex items-center gap-1 pr-1 border-l border-slate-200 ml-1 pl-1">
-                                        {[1, 2, 3, 4, 5].map(min => (
-                                            <button
-                                                key={min}
-                                                onClick={() => setTimerLimit(min)}
-                                                className={`w-6 h-6 flex items-center justify-center rounded-lg text-[10px] font-black transition-all ${timerLimit === min ? 'bg-slate-900 text-white' : 'text-slate-400 hover:text-slate-600'}`}
-                                            >
-                                                {min}
-                                            </button>
-                                        ))}
-                                        <span className="text-[7px] font-black text-slate-400 uppercase ml-1">min</span>
-                                    </div>
-                                )}
+                {/* Top Bar: Title, Room Code, and Action Buttons */}
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between w-full gap-4 md:gap-6">
+                    {/* Left: Title & Room Code */}
+                    <div className="flex items-center gap-3 sm:gap-4 overflow-hidden w-full md:w-auto justify-between">
+                        <div className="flex items-center gap-3 sm:gap-4 overflow-hidden">
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100 shrink-0">
+                                <span className="text-white text-lg sm:text-xl font-black italic">?</span>
                             </div>
-                        </div>
-
-                        {/* Guess Limit Configuration */}
-                        <div className="flex flex-col items-start sm:items-center sm:border-l sm:border-slate-100 sm:pl-4 sm:pl-6 flex-1 sm:flex-none">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Guess Limit</span>
-                            <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200 w-full sm:w-auto justify-center sm:justify-start">
-                                <button
-                                    onClick={() => setGuessLimit(null)}
-                                    className={`px-3 py-1 rounded-lg text-[10px] font-black tracking-widest transition-all ${guessLimit === null ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
-                                >
-                                    ∞
-                                </button>
-                                {[1, 3].map(limit => (
+                            <div className="flex flex-col min-w-0">
+                                <h2 className="text-base sm:text-xl font-extrabold text-slate-900 tracking-tight leading-tight truncate">Character Selection</h2>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest leading-none">Room: <span className="text-indigo-600 font-black">{room.id}</span></p>
                                     <button
-                                        key={limit}
-                                        onClick={() => setGuessLimit(limit)}
-                                        className={`w-10 h-6 flex items-center justify-center rounded-lg text-[10px] font-black transition-all ${guessLimit === limit ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                                        onClick={copyJoinLink}
+                                        className={`flex items-center gap-1 px-2 py-0.5 rounded-md border transition-all active:scale-95 ${copied
+                                                ? 'bg-emerald-50 border-emerald-200 text-emerald-600'
+                                                : 'bg-indigo-50 border-indigo-100 text-indigo-500 hover:bg-indigo-100 hover:border-indigo-200'
+                                            }`}
                                     >
-                                        {limit}
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 012-2v-8a2 2 0 01-2-2h-8a2 2 0 01-2 2v8a2 2 0 012 2z"></path></svg>
+                                        <span className="text-[9px] font-black uppercase tracking-tighter">{copied ? 'Copied!' : 'Copy Link'}</span>
                                     </button>
-                                ))}
-                                <span className="text-[7px] font-black text-slate-400 uppercase ml-1 pr-2">Total</span>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="flex w-full sm:w-auto gap-2">
-                            <button
-                                onClick={handleStart}
-                                disabled={localCharacters.length === 0}
-                                className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 disabled:opacity-30 px-4 sm:px-8 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-black text-white transition-all transform hover:scale-[1.02] shadow-xl shadow-indigo-200 active:scale-95 text-xs sm:text-base"
-                            >
-                                {localCharacters.length === 0 ? "Loading..." : "Lock In Game Mode"}
-                            </button>
+                        {/* Mobile-only Player Indicator & Exit Button (shows on the right of title on mobile) */}
+                        <div className="flex md:hidden items-center gap-2 shrink-0">
+                            <div className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border transition-colors ${room.players.length > 1
+                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                                : 'bg-slate-50 border-slate-200 text-slate-400'
+                                }`}>
+                                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path>
+                                </svg>
+                                <span className="text-[10px] font-black">{room.players.length}/2</span>
+                            </div>
+
                             <button
                                 onClick={leaveRoom}
-                                className="p-2.5 sm:p-3 bg-rose-50 border border-rose-100 rounded-xl sm:rounded-2xl text-rose-600 hover:bg-rose-600 hover:text-white transition-all shadow-sm"
-                                title="Quit Game"
+                                className="p-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-500 hover:text-rose-600 rounded-xl transition-all shadow-sm active:scale-95 shrink-0"
+                                title="Leave Room"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Right: Actions */}
+                    <div className="flex flex-col md:flex-row items-center w-full md:w-auto gap-3 shrink-0">
+                        {isHost && room.gameState === 'LOBBY' && (
+                            <div className="flex items-center gap-2 w-full md:w-auto animate-in fade-in bg-slate-50/50 p-2 md:p-0 md:bg-transparent rounded-2xl border border-slate-100 md:border-none justify-between md:justify-end">
+                                <button
+                                    onClick={() => setIsSettingsOpen(true)}
+                                    className="flex items-center justify-center gap-2 w-full md:w-auto p-2 sm:p-2.5 md:px-5 md:py-3 bg-white border border-slate-200 rounded-xl md:rounded-2xl text-slate-600 hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm active:scale-95 text-sm md:text-base font-bold whitespace-nowrap"
+                                    title="Game Settings"
+                                >
+                                    <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    </svg>
+                                    Customize Game
+                                </button>
+
+                                <button
+                                    onClick={handleStart}
+                                    disabled={localCharacters.length === 0}
+                                    className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 disabled:opacity-30 px-4 py-2 sm:py-2.5 md:px-6 md:py-3 rounded-xl md:rounded-2xl font-black text-white transition-all transform hover:scale-[1.02] shadow-md shadow-indigo-200 active:scale-95 text-sm md:text-base whitespace-nowrap"
+                                >
+                                    {localCharacters.length === 0 ? "Loading..." : "Lock In Game Mode"}
+                                </button>
+                            </div>
+                        )}
+
+                        {room.gameState === 'LOBBY' && !isHost && (
+                            <div className="flex items-center gap-3 bg-slate-100 px-4 py-3 md:py-2.5 rounded-xl border border-slate-200 animate-in zoom-in w-full md:w-auto justify-center md:justify-start">
+                                <div className="w-2.5 h-2.5 bg-slate-400 rounded-full animate-pulse" />
+                                <span className="text-xs sm:text-sm font-black text-slate-500 uppercase tracking-widest">Host is picking game mode...</span>
+                            </div>
+                        )}
+
+                        {room.gameState === 'SELECTING' && (
+                            <div className="flex items-center gap-3 bg-indigo-50 px-4 py-2 rounded-xl border border-indigo-100 animate-in zoom-in w-full md:w-auto justify-center md:justify-start">
+                                <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse" />
+                                <span className="text-xs font-black text-indigo-600 uppercase tracking-widest">Awaiting Selections</span>
+                            </div>
+                        )}
+
+                        {/* Desktop Player Indicator & Exit Button (hidden on mobile, shown on md+) */}
+                        <div className="hidden md:flex items-center gap-3">
+                            <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition-colors ${room.players.length > 1
+                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                                : 'bg-slate-50 border-slate-200 text-slate-400'
+                                }`}>
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"></path>
+                                </svg>
+                                <span className="text-xs font-black">{room.players.length}/2</span>
+                            </div>
+
+                            <button
+                                onClick={leaveRoom}
+                                className="p-2 sm:p-2.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-500 hover:text-rose-600 rounded-xl transition-all shadow-sm active:scale-95"
+                                title="Leave Room"
                             >
                                 <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                             </button>
                         </div>
                     </div>
-                )}
-
-                {room.gameState === 'LOBBY' && !isHost && (
-                    <div className="flex flex-col sm:flex-row items-center gap-4">
-                        <div className="flex items-center gap-3 bg-slate-100 px-4 py-2 rounded-xl border border-slate-200 animate-in zoom-in">
-                            <div className="w-2 h-2 bg-slate-400 rounded-full animate-pulse" />
-                            <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Host is picking game mode...</span>
-                        </div>
-                        <button
-                            onClick={leaveRoom}
-                            className="p-2.5 sm:p-3 bg-rose-50 border border-rose-100 rounded-xl sm:rounded-2xl text-rose-600 hover:bg-rose-600 hover:text-white transition-all shadow-sm active:scale-95"
-                            title="Leave Room"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                        </button>
-                    </div>
-                )}
-
-                {room.gameState === 'SELECTING' && (
-                    <div className="flex items-center gap-3 bg-indigo-50 px-4 py-2 rounded-xl border border-indigo-100 animate-in zoom-in">
-                        <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse" />
-                        <span className="text-xs font-black text-indigo-600 uppercase tracking-widest">Awaiting Selections</span>
-                    </div>
-                )}
+                </div>
             </div>
-
-            {/* Custom Mode Upload Area */}
-            {
-                isHost && mode === 'custom' && room.gameState === 'LOBBY' && (
-                    <div className="bg-indigo-50 p-6 border-b border-indigo-100 animate-in slide-in-from-top-4 duration-500">
-                        <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-                            <div className="flex-1">
-                                <h3 className="text-lg font-black text-indigo-900 mb-1">Custom Character Mode</h3>
-                                <p className="text-sm text-indigo-700/70 font-medium">Upload exactly 16, 20, or 24 pictures of your friends, family, or any characters you want!</p>
-                                <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mt-2 flex items-center gap-2">
-                                    <span className="bg-white px-2 py-0.5 rounded-full border border-indigo-100">Pro Tip</span>
-                                    Portrait (4:5) or Square photos work best!
-                                </p>
-                            </div>
-                            <label className="relative group cursor-pointer">
-                                <input
-                                    type="file"
-                                    multiple
-                                    accept="image/*"
-                                    onChange={handleFileUpload}
-                                    className="hidden"
-                                />
-                                <div className="bg-white text-indigo-600 px-8 py-4 rounded-2xl font-black shadow-xl shadow-indigo-200/50 border-2 border-dashed border-indigo-200 group-hover:border-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all flex items-center gap-3">
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                                    <span>{uploading ? 'Uploading...' : localCharacters.length > 0 ? `${localCharacters.length} Photos Ready` : "Upload Custom Photos"}</span>
-                                </div>
-                            </label>
-                        </div>
-                    </div>
-                )
-            }
 
             <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
                 {/* Main Content */}
-                {/* Main Content Area */}
-                <div className="flex-1 p-4 sm:p-8 overflow-y-auto pb-32 sm:pb-8">
-                    <div className="mb-6 sm:mb-8">
-                        <h3 className="text-xl sm:text-2xl font-black text-slate-900 mb-2">
-                            Choose Your Character
-                        </h3>
-                    </div>
+                <div className="flex-1 p-4 sm:p-8 overflow-y-auto">
+                    {room.gameState === 'SELECTING' && (
+                        <div className="mb-6 sm:mb-8 flex justify-center w-full animate-in slide-in-from-top-4 fade-in duration-300">
+                            <div className="bg-slate-900 px-4 py-2 sm:px-6 sm:py-2.5 rounded-full shadow-md shadow-slate-200/50 flex items-center transform hover:scale-105 transition-transform">
+                                <h3 className="text-sm font-black text-white tracking-widest uppercase">
+                                    Choose Character
+                                </h3>
+                            </div>
+                        </div>
+                    )}
 
-                    <div className="grid grid-cols-5 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5 sm:gap-6">
+                    <div className="grid grid-cols-5 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-1.5 sm:gap-6 pb-12 sm:pb-0">
                         {charactersToDisplay.map(char => (
                             <div
                                 key={char.id}
@@ -286,11 +221,13 @@ const CharacterSelect = () => {
                                     <img
                                         src={char.image}
                                         alt={char.name}
-                                        className="w-full h-full object-cover rounded-md sm:rounded-2xl"
+                                        className={`w-full h-full object-cover rounded-md sm:rounded-2xl transition-all duration-300 ${selectedId === char.id ? 'scale-110' : 'group-hover:scale-105'
+                                            }`}
                                     />
                                 </div>
-                                <div className="p-1 sm:p-3 bg-white rounded-b-lg sm:rounded-b-3xl border-t border-slate-50 text-center">
-                                    <p className={`text-[7px] sm:text-sm font-black truncate ${selectedId === char.id ? 'text-indigo-600' : 'text-slate-700'
+                                <div className={`p-1 sm:p-4 text-center border-t border-slate-50 transition-colors ${selectedId === char.id ? 'bg-indigo-600' : 'bg-white'
+                                    }`}>
+                                    <p className={`text-[7px] sm:text-sm font-black truncate ${selectedId === char.id ? 'text-white' : 'text-slate-700'
                                         }`}>
                                         {char.name}
                                     </p>
@@ -307,8 +244,8 @@ const CharacterSelect = () => {
                 </div>
 
                 {/* Sidebar - Players */}
-                <div className="hidden lg:flex w-80 p-8 bg-white border-l border-slate-100 flex-col gap-8 overflow-y-auto">
-                    <div>
+                <div className="w-full lg:w-80 p-4 sm:p-8 bg-white border-t lg:border-t-0 lg:border-l border-slate-100 flex flex-col gap-6 sm:gap-8 overflow-y-auto">
+                    <div className="hidden sm:block">
                         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">Players Connected</h3>
                         <div className="space-y-3">
                             {room.players.map(p => (
@@ -323,40 +260,119 @@ const CharacterSelect = () => {
                         </div>
                     </div>
 
-                    <div className="mt-auto p-6 bg-slate-900 rounded-[2rem] text-white shadow-2xl relative overflow-hidden group">
-                        <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all" />
-                        <h4 className="text-xl font-black mb-2 relative z-10 leading-tight">
-                            {me?.isReady ? "Ready to Play!" : "Finalize Selection"}
-                        </h4>
-                        <p className="text-white/60 text-sm mb-6 relative z-10 leading-relaxed font-medium">
-                            {me?.isReady
-                                ? "Waiting for opponent..."
-                                : "Pick and lock it in."}
-                        </p>
-                        <button
-                            disabled={!selectedId || me?.isReady || room.gameState !== 'SELECTING'}
-                            onClick={() => selectCharacter(charactersToDisplay.find(c => c.id === selectedId))}
-                            className="w-full py-4 bg-white text-slate-900 rounded-2xl font-bold hover:bg-indigo-50 transition-all disabled:opacity-30 disabled:grayscale active:scale-95 shadow-lg relative z-10"
-                        >
-                            {me?.isReady ? "Locked In" : "Lock Character"}
-                        </button>
-                    </div>
-                </div>
-
-                {/* Mobile Sticky Footer */}
-                <div className="lg:hidden fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-xl border-t border-slate-100 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] z-50 animate-in slide-in-from-bottom-full duration-500">
-                    <div className="flex items-center justify-center max-w-lg mx-auto">
-                        <button
-                            disabled={!selectedId || me?.isReady || room.gameState !== 'SELECTING'}
-                            onClick={() => selectCharacter(charactersToDisplay.find(c => c.id === selectedId))}
-                            className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-30 w-full py-4 rounded-xl font-black text-white text-sm uppercase tracking-[0.2em] transition-all active:scale-95 shadow-lg shadow-indigo-100"
-                        >
-                            {me?.isReady ? "LOCKED" : "LOCK PLAYER"}
-                        </button>
-                    </div>
+                    <button
+                        disabled={!selectedId || me?.isReady || room.gameState !== 'SELECTING'}
+                        onClick={() => selectCharacter(charactersToDisplay.find(c => c.id === selectedId))}
+                        className="mt-auto w-full py-4 sm:py-5 bg-slate-900 text-white rounded-2xl font-black hover:bg-slate-800 transition-all disabled:opacity-50 disabled:grayscale active:scale-95 shadow-xl text-base sm:text-lg overflow-hidden relative group"
+                    >
+                        <div className="absolute inset-0 bg-white/10 w-full h-full transform -translate-x-full group-hover:translate-x-0 transition-transform duration-300 pointer-events-none" />
+                        <span className="relative z-10">
+                            {me?.isReady ? "Locked In (Waiting...)" : "Lock Character"}
+                        </span>
+                    </button>
                 </div>
             </div>
-        </div >
+
+            {/* Bottom-Sheet Settings Modal for Host */}
+            {isSettingsOpen && isHost && room.gameState === 'LOBBY' && (
+                <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsSettingsOpen(false)}>
+                    <div
+                        className="bg-white w-full sm:w-[400px] rounded-t-3xl sm:rounded-3xl p-6 sm:p-8 shadow-2xl animate-in slide-in-from-bottom-full sm:zoom-in-95 duration-300 transform-gpu border border-slate-100"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Drag Handle (Mobile) */}
+                        <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6 sm:hidden"></div>
+
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-black text-slate-900 tracking-tight">Game Settings</h3>
+                            <button
+                                onClick={() => setIsSettingsOpen(false)}
+                                className="p-2 bg-slate-50 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            </button>
+                        </div>
+
+                        <div className="space-y-6">
+                            {/* Theme */}
+                            <div className="flex flex-col items-start cursor-pointer group" onClick={() => document.getElementById('themeSelect').focus()}>
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 group-hover:text-indigo-600 transition-colors">Theme Pattern</span>
+                                <select
+                                    id="themeSelect"
+                                    value={mode}
+                                    onChange={(e) => setMode(e.target.value)}
+                                    className="bg-slate-50 text-slate-700 w-full px-4 py-3 rounded-2xl border border-slate-200 focus:outline-none focus:ring-4 focus:ring-indigo-100 font-bold transition-all text-sm appearance-none cursor-pointer"
+                                    style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: `right 0.5rem center`, backgroundRepeat: `no-repeat`, backgroundSize: `1.5em 1.5em`, paddingRight: `2.5rem` }}
+                                >
+                                    <option value="default">Default</option>
+                                    <option value="marvel_dc">Marvel & DC</option>
+                                    <option value="youtubers">YouTubers</option>
+                                    <option value="fruits_veg">Fruits & Veg</option>
+                                    <option value="anime">Anime</option>
+                                    <option value="countries">Countries</option>
+                                    <option value="custom">Custom</option>
+                                </select>
+                            </div>
+
+                            {/* Turn Timer Configuration */}
+                            <div className="flex flex-col items-start border-t border-slate-100 pt-6">
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Turn Timer Limit</span>
+                                <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200 w-full">
+                                    <button
+                                        onClick={() => setTimerEnabled(!timerEnabled)}
+                                        className={`px-4 py-2.5 rounded-xl text-xs font-black tracking-widest transition-all shadow-sm ${timerEnabled ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-600 bg-white'}`}
+                                    >
+                                        {timerEnabled ? "ON" : "OFF"}
+                                    </button>
+                                    {timerEnabled && (
+                                        <div className="flex items-center gap-2 pr-2 border-l border-slate-200 ml-2 pl-2 overflow-x-auto hide-scrollbar flex-1">
+                                            {[1, 2, 3].map(min => (
+                                                <button
+                                                    key={min}
+                                                    onClick={() => setTimerLimit(min)}
+                                                    className={`w-10 h-10 flex-1 flex items-center justify-center rounded-xl text-sm font-black transition-all shadow-sm ${timerLimit === min ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-700 bg-white border border-slate-200'}`}
+                                                >
+                                                    {min}m
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Guessing Limit Configuration */}
+                            <div className="flex flex-col items-start border-t border-slate-100 pt-6">
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Guess Attempts allowed</span>
+                                <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-200 w-full">
+                                    <button
+                                        onClick={() => setGuessLimit(null)}
+                                        className={`px-4 py-2.5 rounded-xl text-xs font-black tracking-widest transition-all shadow-sm flex-1 ${guessLimit === null ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-700 bg-white border border-slate-200'}`}
+                                    >
+                                        ∞ UNLIMITED
+                                    </button>
+                                    {[1, 3].map(limit => (
+                                        <button
+                                            key={limit}
+                                            onClick={() => setGuessLimit(limit)}
+                                            className={`w-12 h-10 flex items-center justify-center rounded-xl text-sm font-black transition-all shadow-sm ${guessLimit === limit ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-700 bg-white border border-slate-200'}`}
+                                        >
+                                            {limit}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={() => setIsSettingsOpen(false)}
+                                className="w-full mt-4 bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-2xl transition-colors active:scale-95 shadow-lg"
+                            >
+                                Done
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 };
 

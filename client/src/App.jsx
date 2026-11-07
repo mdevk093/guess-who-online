@@ -1,23 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { GameProvider, useGame } from './context/GameContext';
-import Lobby from './components/Lobby';
+import Landing from './components/Landing';
 import CharacterSelect from './components/CharacterSelect';
 import GameBoard from './components/GameBoard';
-import Auth from './components/Auth';
 import ErrorBoundary from './components/ErrorBoundary';
-import { supabase } from './supabaseClient';
 
 const GameRouter = () => {
   const { room, session, isGuest } = useGame();
 
-  if (!session && !isGuest) {
-    return <Auth />;
-  }
-
+  // If not in a room, ALWAYS show landing page.
+  // The Landing page itself handles rendering the Auth modal if the user clicks "Sign In".
+  // It also handles creating/joining rooms.
   if (!room) {
-    return <Lobby />;
+    return <Landing />;
   }
 
+  // Once in a room, route based on game state
   if (room.gameState === 'LOBBY' || room.gameState === 'SELECTING') {
     return <CharacterSelect />;
   }

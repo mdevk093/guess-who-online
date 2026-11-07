@@ -32,6 +32,36 @@ function filterProfanity(text) {
     return filtered;
 }
 
+function sanitizeInput(str, maxLength) {
+    if (!str || typeof str !== 'string') return '';
+    // HTML Encode basic characters to prevent XSS
+    let sanitized = str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+    // Truncate to prevent payload size abuse
+    if (maxLength && sanitized.length > maxLength) {
+        sanitized = sanitized.substring(0, maxLength);
+    }
+    return sanitized;
+}
+
+function broadcastPublicRooms(io) {
+    const publicRooms = [];
+    rooms.forEach((room, roomId) => {
+        if (room.isPublic && room.gameState === 'LOBBY' && room.players.length === 1) {
+            publicRooms.push({
+                roomId: room.id,
+                hostName: room.players[0].name
+            });
+        }
+    });
+    io.emit('public_rooms_update', publicRooms);
+}
+
 function clearRoomTimer(roomId) {
     if (roomTimers.has(roomId)) {
         clearTimeout(roomTimers.get(roomId));
@@ -73,15 +103,34 @@ function startRoomTimer(io, roomId) {
 }
 
 function handleSocketEvents(io, socket) {
+    // Get Public Rooms
+    socket.on('get_public_rooms', () => {
+        if (!checkRateLimit(socket.id, 'get_public_rooms', 2000)) return;
+        const publicRooms = [];
+        rooms.forEach((room, roomId) => {
+            if (room.isPublic && room.gameState === 'LOBBY' && room.players.length === 1) {
+                publicRooms.push({
+                    roomId: room.id,
+                    hostName: room.players[0].name
+                });
+            }
+        });
+        socket.emit('public_rooms_update', publicRooms);
+    });
     // Create Room
-    socket.on('create_room', ({ playerName, userId }) => {
+    socket.on('create_room', ({ playerName, userId, isPublic = false }) => {
+        if (!checkRateLimit(socket.id, 'create_room', 3000)) {
+            return socket.emit('error', 'Please wait a few seconds before creating another room.');
+        }
+        const safePlayerName = sanitizeInput(playerName, 20);
         const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
         const room = {
             id: roomId,
+            isPublic,
             players: [{
                 id: socket.id,
                 userId: userId, // Store Supabase UID
-                name: playerName,
+                name: safePlayerName,
                 isHost: true,
                 selectedCharacter: null,
                 isReady: false,
@@ -99,37 +148,44 @@ function handleSocketEvents(io, socket) {
         rooms.set(roomId, room);
         socket.join(roomId);
         socket.emit('room_created', { roomId, room });
-        console.log(`Room created: ${roomId} by ${playerName}`);
+        console.log(`Room created: ${roomId} by ${safePlayerName} (Public: ${isPublic})`);
+        if (isPublic) broadcastPublicRooms(io);
     });
 
     // Join Room
     socket.on('join_room', ({ roomId, playerName, userId }) => {
-        const room = rooms.get(roomId);
+        if (!checkRateLimit(socket.id, 'join_room', 2000)) {
+            return socket.emit('error', 'Please wait before joining another room.');
+        }
+        const safeRoomId = sanitizeInput(roomId, 8).toUpperCase();
+        const safePlayerName = sanitizeInput(playerName, 20);
+
+        const room = rooms.get(safeRoomId);
         if (!room) {
             return socket.emit('error', 'Room not found');
         }
 
         // Check for reconnection
         const existingPlayer = room.players.find(p =>
-            (userId && p.userId === userId) || (p.name === playerName && !p.connected)
+            (userId && p.userId === userId) || (p.name === safePlayerName && !p.connected)
         );
 
         if (existingPlayer) {
-            console.log(`Player ${playerName} reconnected to room ${roomId}`);
+            console.log(`Player ${safePlayerName} reconnected to room ${safeRoomId}`);
             existingPlayer.id = socket.id;
             existingPlayer.connected = true;
             if (userId) existingPlayer.userId = userId; // Update userId if player is now logged in
 
             // Clear any cleanup timers for this room if both players are back
             if (room.players.every(p => p.connected)) {
-                if (roomCleanupTimers.has(roomId)) {
-                    clearTimeout(roomCleanupTimers.get(roomId));
-                    roomCleanupTimers.delete(roomId);
+                if (roomCleanupTimers.has(safeRoomId)) {
+                    clearTimeout(roomCleanupTimers.get(safeRoomId));
+                    roomCleanupTimers.delete(safeRoomId);
                 }
             }
 
-            socket.join(roomId);
-            io.to(roomId).emit('room_updated', room);
+            socket.join(safeRoomId);
+            io.to(safeRoomId).emit('room_updated', room);
             return;
         }
 
@@ -140,7 +196,7 @@ function handleSocketEvents(io, socket) {
         const newPlayer = {
             id: socket.id,
             userId: userId, // Store Supabase UID
-            name: playerName,
+            name: safePlayerName,
             isHost: false,
             selectedCharacter: null,
             isReady: false,
@@ -148,13 +204,15 @@ function handleSocketEvents(io, socket) {
         };
 
         room.players.push(newPlayer);
-        socket.join(roomId);
-        io.to(roomId).emit('room_updated', room);
-        console.log(`${playerName} joined room: ${roomId}`);
+        socket.join(safeRoomId);
+        io.to(safeRoomId).emit('room_updated', room);
+        console.log(`${safePlayerName} joined room: ${safeRoomId}`);
+        if (room.isPublic) broadcastPublicRooms(io);
     });
 
     // Leave Room
     socket.on('leave_room', ({ roomId }) => {
+        if (!checkRateLimit(socket.id, 'leave_room', 1000)) return;
         const room = rooms.get(roomId);
         if (room) {
             const playerIndex = room.players.findIndex(p => p.id === socket.id);
@@ -168,6 +226,7 @@ function handleSocketEvents(io, socket) {
                 socket.leave(roomId);
 
                 console.log(`${playerName} left room: ${roomId}. Room terminated.`);
+                broadcastPublicRooms(io);
             }
         }
     });
@@ -197,6 +256,11 @@ function handleSocketEvents(io, socket) {
                 }, 60000); // 60 seconds grace period
 
                 roomCleanupTimers.set(roomId, cleanupTimeout);
+
+                // If it was a public room and a player disconnected, broadcast update
+                if (room.isPublic && room.gameState === 'LOBBY') {
+                    broadcastPublicRooms(io);
+                }
             }
         });
     });
@@ -210,6 +274,7 @@ function handleSocketEvents(io, socket) {
             room.settings = settings || { timerLimit: null };
             room.gameState = 'SELECTING';
             io.to(roomId).emit('game_started', room);
+            if (room.isPublic) broadcastPublicRooms(io);
         }
     });
 
@@ -265,9 +330,12 @@ function handleSocketEvents(io, socket) {
                     timestamp: new Date().toLocaleTimeString()
                 };
             } else {
+                const safeMessage = sanitizeInput(message, 250);
+                if (!safeMessage) return; // Ignore empty/fully-stripped messages
+
                 msgData = {
                     sender: socket.id,
-                    text: filterProfanity(message),
+                    text: filterProfanity(safeMessage),
                     timestamp: new Date().toLocaleTimeString()
                 };
             }
@@ -278,6 +346,7 @@ function handleSocketEvents(io, socket) {
 
     // Report User
     socket.on('report_user', ({ roomId, message, reporterName }) => {
+        if (!checkRateLimit(socket.id, 'report_user', 5000)) return;
         const room = rooms.get(roomId);
         if (room) {
             const reportedPlayer = room.players.find(p => p.id === message.sender);
@@ -439,6 +508,7 @@ function handleSocketEvents(io, socket) {
 
             io.to(roomId).emit('room_updated', room);
             console.log(`Room ${roomId} restarted`);
+            if (room.isPublic) broadcastPublicRooms(io);
         }
     });
 
@@ -457,6 +527,7 @@ function handleSocketEvents(io, socket) {
 
     // Update Eliminated Count
     socket.on('update_eliminated_count', ({ roomId, count }) => {
+        if (!checkRateLimit(socket.id, 'update_eliminated_count', 500)) return;
         const room = rooms.get(roomId);
         if (room) {
             const player = room.players.find(p => p.id === socket.id);

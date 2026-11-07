@@ -10,6 +10,7 @@
         "postinstall": "npm run install-all"
     },
     "devDependencies": {
-        "concurrently": "^8.2.2"
+        "concurrently": "^8.2.2",
+        "playwright": "^1.58.2"
     }
 }

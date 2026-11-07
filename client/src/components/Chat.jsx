@@ -137,6 +137,7 @@ const Chat = () => {
                         value={input}
                         onChange={handleInputChange}
                         placeholder="Message..."
+                        maxLength={250}
                         className="w-full bg-slate-50 border border-slate-100 rounded-xl sm:rounded-2xl pl-4 pr-10 py-3 sm:py-4 text-[13px] sm:text-sm font-medium focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all placeholder:text-slate-300"
                     />
                     <button
