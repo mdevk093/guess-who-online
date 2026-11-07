@@ -337,6 +337,11 @@ function handleSocketEvents(io, socket) {
         };
 
         room.players.push(newPlayer);
+        room.chat.push({
+            type: 'DIVIDER',
+            text: `${safePlayerName} joined the lobby`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        });
         socket.join(safeRoomId);
         resetInactivityTimer(io, safeRoomId);
         emitRoomState(io, room, 'room_updated');
@@ -514,6 +519,11 @@ function handleSocketEvents(io, socket) {
                     });
 
                     room.turnStartTime = Date.now();
+                    room.chat.push({
+                        type: 'DIVIDER',
+                        text: 'Match Started',
+                        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    });
                     emitRoomState(io, room, 'start_playing');
                     startRoomTimer(io, roomId);
                 } else {

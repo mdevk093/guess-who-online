@@ -18,6 +18,8 @@ const Chat = ({ isOpen = true }) => {
     const opponent = room?.players?.find(p => p.id !== socket.id);
     const opponentName = opponent?.name ? decodeHtmlEntity(opponent.name) : 'Opponent';
     const opponentInitials = getInitials(opponent?.name);
+    const isLobby = room?.gameState === 'LOBBY' || room?.gameState === 'SELECTING';
+    const connectedCount = room?.players?.filter(p => p.connected !== false).length || 1;
 
     const scrollToBottom = React.useCallback(() => {
         if (chatContainerRef.current) {
@@ -87,23 +89,31 @@ const Chat = ({ isOpen = true }) => {
                 <div className="flex items-center gap-2.5">
                     <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></div>
                     <div>
-                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">Deduction Chat</h3>
-                        <p className="text-[10px] text-slate-500">Ask Yes / No questions on your turn</p>
+                        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">
+                            {isLobby ? 'Lobby Chat' : 'Deduction Chat'}
+                        </h3>
+                        <p className="text-[10px] text-slate-500">
+                            {isLobby ? 'Coordinate theme & rules before starting' : 'Ask Yes / No questions on your turn'}
+                        </p>
                     </div>
                 </div>
                 <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border bg-white border-slate-200 text-slate-700">
-                    1v1 Match
+                    {isLobby ? `${connectedCount}/2 Connected` : '1v1 Match'}
                 </span>
             </div>
 
             {/* Messages Body */}
             <div ref={chatContainerRef} className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col text-xs">
                 {room?.chat?.length === 0 && (
-                    <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-2 py-8">
+                    <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-2 py-8 text-center">
                         <div className="w-10 h-10 rounded-2xl bg-sky-50 border border-sky-200 text-sky-600 flex items-center justify-center font-black text-base">
-                            ?
+                            {isLobby ? '💬' : '?'}
                         </div>
-                        <p className="text-xs font-bold text-slate-500">Ask a Yes / No question to start deducing!</p>
+                        <p className="text-xs font-bold text-slate-500">
+                            {isLobby
+                                ? 'Say hello or suggest a theme deck to your opponent!'
+                                : 'Ask a Yes / No question to start deducing!'}
+                        </p>
                     </div>
                 )}
 
@@ -221,31 +231,65 @@ const Chat = ({ isOpen = true }) => {
                 <div ref={chatEndRef} />
             </div>
 
-            {/* Quick Action Deduction Buttons */}
-            <div className="px-4 py-2 border-t bg-slate-50/80 border-slate-200 text-slate-600 flex items-center gap-2 overflow-x-auto shrink-0">
-                <span className="text-[10px] font-bold uppercase tracking-widest shrink-0 opacity-70">Quick Reply:</span>
-                <button
-                    type="button"
-                    onClick={() => handleQuickReply('👍 Yes')}
-                    className="px-3 py-1 rounded-lg border text-xs font-bold transition-all shrink-0 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700 active:scale-95"
-                >
-                    👍 Yes
-                </button>
-                <button
-                    type="button"
-                    onClick={() => handleQuickReply('👎 No')}
-                    className="px-3 py-1 rounded-lg border text-xs font-bold transition-all shrink-0 bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-700 active:scale-95"
-                >
-                    👎 No
-                </button>
-                <button
-                    type="button"
-                    onClick={() => handleQuickReply('🤔 Maybe / Unclear')}
-                    className="px-3 py-1 rounded-lg border text-xs font-bold transition-all shrink-0 bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-700 active:scale-95"
-                >
-                    🤔 Maybe / Unclear
-                </button>
-            </div>
+            {/* Quick Action Chips (Lobby Icebreakers vs In-Game Deduction Replies) */}
+            {isLobby ? (
+                <div className="px-4 py-2 border-t bg-slate-50/80 border-slate-200 text-slate-600 flex items-center gap-1.5 overflow-x-auto shrink-0">
+                    <span className="text-[10px] font-bold uppercase tracking-widest shrink-0 opacity-70">Quick:</span>
+                    <button
+                        type="button"
+                        onClick={() => handleQuickReply('👋 Hey! Ready when you are!')}
+                        className="px-2.5 py-1 rounded-lg border text-[11px] font-bold transition-all shrink-0 bg-white hover:bg-sky-50 border-slate-200 hover:border-sky-200 text-slate-700 hover:text-sky-700 active:scale-95"
+                    >
+                        👋 Hey!
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => handleQuickReply('🌍 Want to play the World Countries deck?')}
+                        className="px-2.5 py-1 rounded-lg border text-[11px] font-bold transition-all shrink-0 bg-white hover:bg-sky-50 border-slate-200 hover:border-sky-200 text-slate-700 hover:text-sky-700 active:scale-95"
+                    >
+                        🌍 Countries?
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => handleQuickReply('⏱️ Should we turn on a turn timer?')}
+                        className="px-2.5 py-1 rounded-lg border text-[11px] font-bold transition-all shrink-0 bg-white hover:bg-sky-50 border-slate-200 hover:border-sky-200 text-slate-700 hover:text-sky-700 active:scale-95"
+                    >
+                        ⏱️ Timer?
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => handleQuickReply("⚡ I'm ready!")}
+                        className="px-2.5 py-1 rounded-lg border text-[11px] font-bold transition-all shrink-0 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700 active:scale-95"
+                    >
+                        ⚡ Ready!
+                    </button>
+                </div>
+            ) : (
+                <div className="px-4 py-2 border-t bg-slate-50/80 border-slate-200 text-slate-600 flex items-center gap-2 overflow-x-auto shrink-0">
+                    <span className="text-[10px] font-bold uppercase tracking-widest shrink-0 opacity-70">Quick Reply:</span>
+                    <button
+                        type="button"
+                        onClick={() => handleQuickReply('👍 Yes')}
+                        className="px-3 py-1 rounded-lg border text-xs font-bold transition-all shrink-0 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700 active:scale-95"
+                    >
+                        👍 Yes
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => handleQuickReply('👎 No')}
+                        className="px-3 py-1 rounded-lg border text-xs font-bold transition-all shrink-0 bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-700 active:scale-95"
+                    >
+                        👎 No
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => handleQuickReply('🤔 Maybe / Unclear')}
+                        className="px-3 py-1 rounded-lg border text-xs font-bold transition-all shrink-0 bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-700 active:scale-95"
+                    >
+                        🤔 Maybe / Unclear
+                    </button>
+                </div>
+            )}
 
             {/* Input Bar */}
             <form onSubmit={handleSend} className="p-3 border-t bg-slate-50 border-slate-200 flex items-center gap-2 shrink-0">
@@ -253,7 +297,7 @@ const Chat = ({ isOpen = true }) => {
                     type="text"
                     value={input}
                     onChange={handleInputChange}
-                    placeholder="Ask a deduction question..."
+                    placeholder={isLobby ? 'Message lobby...' : 'Ask a deduction question...'}
                     maxLength={250}
                     className="flex-1 rounded-xl px-4 py-2.5 text-xs focus:outline-none transition-all font-medium border bg-white border-slate-200 text-slate-900 placeholder-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
                 />
