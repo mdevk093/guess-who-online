@@ -2,6 +2,8 @@ const { supabase } = require('../db');
 const rooms = new Map();
 const roomTimers = new Map();
 const roomCleanupTimers = new Map(); // For reconnection grace period
+const roomInactivityTimers = new Map(); // For 3-minute inactivity auto-abort (FR-ROOM-08)
+const INACTIVITY_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
 const lastEventTimestamps = new Map(); // For rate limiting: socket.id -> { category -> timestamp }
 
 function checkRateLimit(socketId, category, limitMs) {
@@ -61,7 +63,7 @@ function getPublicRoomsList() {
                     hostName: room.players[0]?.name || 'Host',
                     playerCount,
                     maxPlayers: 2,
-                    isFull: playerCount >= 2 || room.gameState !== 'LOBBY',
+                    isFull: playerCount >= 2 || (room.gameState !== 'LOBBY' && room.gameState !== 'SELECTING'),
                     gameState: room.gameState
                 });
             }
@@ -137,12 +139,51 @@ function clearRoomTimer(roomId) {
     }
 }
 
-function startRoomTimer(io, roomId) {
+function clearInactivityTimer(roomId) {
+    if (roomInactivityTimers.has(roomId)) {
+        clearTimeout(roomInactivityTimers.get(roomId));
+        roomInactivityTimers.delete(roomId);
+    }
+}
+
+/**
+ * Resets the 3-minute inactivity timer for a room (FR-ROOM-08).
+ * If no chats, guesses, card flips, or selections occur for 3 minutes, the room is terminated.
+ */
+function resetInactivityTimer(io, roomId) {
+    clearInactivityTimer(roomId);
+    const room = rooms.get(roomId);
+    if (!room) return;
+    room.lastActivityAt = Date.now();
+
+    const timeout = setTimeout(() => {
+        const currentRoom = rooms.get(roomId);
+        if (!currentRoom) return;
+
+        io.to(roomId).emit('room_terminated', 'Game cancelled due to 3 minutes of inactivity.');
+        rooms.delete(roomId);
+        clearRoomTimer(roomId);
+        clearInactivityTimer(roomId);
+        if (roomCleanupTimers.has(roomId)) {
+            clearTimeout(roomCleanupTimers.get(roomId));
+            roomCleanupTimers.delete(roomId);
+        }
+        console.log(`Room ${roomId} terminated due to 3 minutes of inactivity.`);
+        broadcastPublicRooms(io);
+    }, INACTIVITY_TIMEOUT_MS);
+
+    roomInactivityTimers.set(roomId, timeout);
+}
+
+function startRoomTimer(io, roomId, customLimitMs = null) {
     clearRoomTimer(roomId);
     const room = rooms.get(roomId);
     if (!room || room.gameState !== 'PLAYING' || !room.settings?.timerLimit) return;
 
-    const limitMs = room.settings.timerLimit * 60 * 1000;
+    const fullLimitMs = room.settings.timerLimit * 60 * 1000;
+    const limitMs = (customLimitMs !== null && customLimitMs !== undefined) ? customLimitMs : fullLimitMs;
+    room.turnRemainingMs = limitMs;
+    room.turnPausedAt = null;
 
     const timeout = setTimeout(() => {
         const currentRoom = rooms.get(roomId);
@@ -153,11 +194,13 @@ function startRoomTimer(io, roomId) {
 
         currentRoom.turn = nextTurn;
         currentRoom.turnStartTime = Date.now();
+        currentRoom.turnRemainingMs = fullLimitMs;
+        currentRoom.turnPausedAt = null;
 
         const msgData = {
             type: 'DIVIDER',
             text: `Time's up! It's now ${nextPlayer.name}'s turn.`,
-            timestamp: new Date().toLocaleTimeString()
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
         currentRoom.chat.push(msgData);
 
@@ -183,6 +226,7 @@ function handleSocketEvents(io, socket) {
         const room = rooms.get(roomId);
         if (room && room.players[0]?.id === socket.id) {
             room.isPublic = Boolean(isPublic);
+            resetInactivityTimer(io, roomId);
             emitRoomState(io, room, 'room_updated');
             broadcastPublicRooms(io);
             console.log(`Room ${roomId} visibility set to Public: ${room.isPublic}`);
@@ -220,6 +264,7 @@ function handleSocketEvents(io, socket) {
             chat: []
         };
         rooms.set(roomId, room);
+        resetInactivityTimer(io, roomId);
         socket.join(roomId);
         socket.emit('room_created', { roomId, room: sanitizeRoomForPlayer(room, socket.id) });
         console.log(`Room created: ${roomId} by ${safePlayerName} (Public: ${isPublic})`);
@@ -249,6 +294,7 @@ function handleSocketEvents(io, socket) {
             console.log(`Player ${safePlayerName} reconnected to room ${safeRoomId}`);
             existingPlayer.id = socket.id;
             existingPlayer.connected = true;
+            existingPlayer.disconnectedAt = null;
             if (verifiedUserId) existingPlayer.userId = verifiedUserId; // Update verified userId if player is now logged in
 
             // Clear any cleanup timers for this room if both players are back
@@ -257,9 +303,18 @@ function handleSocketEvents(io, socket) {
                     clearTimeout(roomCleanupTimers.get(safeRoomId));
                     roomCleanupTimers.delete(safeRoomId);
                 }
+                // Resume paused turn timer on reconnect (NFR-REL-04)
+                if (room.gameState === 'PLAYING' && room.settings?.timerLimit && room.turnPausedAt) {
+                    const fullLimitMs = room.settings.timerLimit * 60 * 1000;
+                    const remainingMs = room.turnRemainingMs ?? fullLimitMs;
+                    room.turnStartTime = Date.now() - (fullLimitMs - remainingMs);
+                    room.turnPausedAt = null;
+                    startRoomTimer(io, safeRoomId, remainingMs);
+                }
             }
 
             socket.join(safeRoomId);
+            resetInactivityTimer(io, safeRoomId);
             emitRoomState(io, room, 'room_updated');
             if (room.isPublic) broadcastPublicRooms(io);
             return;
@@ -283,6 +338,7 @@ function handleSocketEvents(io, socket) {
 
         room.players.push(newPlayer);
         socket.join(safeRoomId);
+        resetInactivityTimer(io, safeRoomId);
         emitRoomState(io, room, 'room_updated');
         io.to(safeRoomId).emit('player_joined_sound', { playerName: safePlayerName });
         console.log(`${safePlayerName} joined room: ${safeRoomId}`);
@@ -298,16 +354,57 @@ function handleSocketEvents(io, socket) {
             if (playerIndex !== -1) {
                 const playerName = room.players[playerIndex].name;
 
-                // Notify the other player and terminate the room
-                io.to(roomId).emit('room_terminated', `${playerName} has quit the game.`);
+                // Notify ONLY the opponent (not the player who chose to leave) and terminate the room
+                socket.to(roomId).emit('room_terminated', `${playerName} has left the game.`);
+                socket.leave(roomId);
                 rooms.delete(roomId);
                 clearRoomTimer(roomId);
-                socket.leave(roomId);
+                clearInactivityTimer(roomId);
+                if (roomCleanupTimers.has(roomId)) {
+                    clearTimeout(roomCleanupTimers.get(roomId));
+                    roomCleanupTimers.delete(roomId);
+                }
 
                 console.log(`${playerName} left room: ${roomId}. Room terminated.`);
                 broadcastPublicRooms(io);
             }
         }
+    });
+
+    // Host Kick Player in Pre-Game Lobby (FR-ROOM-07)
+    socket.on('kick_player', ({ roomId, targetPlayerId }) => {
+        if (!checkRateLimit(socket.id, 'game_action', 500)) return;
+        const room = rooms.get(roomId);
+        if (!room) return;
+
+        // Only the Host can kick, and only during pre-game phases (LOBBY or SELECTING)
+        const hostPlayer = room.players[0];
+        if (!hostPlayer || hostPlayer.id !== socket.id || !hostPlayer.isHost) return;
+        if (room.gameState !== 'LOBBY' && room.gameState !== 'SELECTING') return;
+        if (!targetPlayerId || targetPlayerId === socket.id) return;
+
+        const targetIndex = room.players.findIndex(p => p.id === targetPlayerId);
+        if (targetIndex === -1) return;
+
+        const [kickedPlayer] = room.players.splice(targetIndex, 1);
+
+        // Notify the kicked player and remove their socket from the room
+        io.to(kickedPlayer.id).emit('room_terminated', 'You were removed from the lobby by the host.');
+        const targetSocket = io.sockets.sockets.get(kickedPlayer.id);
+        if (targetSocket) {
+            targetSocket.leave(roomId);
+        }
+
+        // Clear any pending disconnect cleanup timer for the room
+        if (roomCleanupTimers.has(roomId)) {
+            clearTimeout(roomCleanupTimers.get(roomId));
+            roomCleanupTimers.delete(roomId);
+        }
+
+        resetInactivityTimer(io, roomId);
+        emitRoomState(io, room, 'room_updated');
+        console.log(`Host ${hostPlayer.name} kicked ${kickedPlayer.name} from room ${roomId}.`);
+        if (room.isPublic) broadcastPublicRooms(io);
     });
 
     // Disconnect
@@ -318,6 +415,16 @@ function handleSocketEvents(io, socket) {
             if (playerIndex !== -1) {
                 const player = room.players[playerIndex];
                 player.connected = false;
+                player.disconnectedAt = Date.now();
+
+                // Pause active turn timer while a player is disconnected (NFR-REL-04)
+                if (room.gameState === 'PLAYING' && room.settings?.timerLimit && !room.turnPausedAt) {
+                    const fullLimitMs = room.settings.timerLimit * 60 * 1000;
+                    const elapsedMs = Date.now() - (room.turnStartTime || Date.now());
+                    room.turnRemainingMs = Math.max(1000, fullLimitMs - elapsedMs);
+                    room.turnPausedAt = Date.now();
+                    clearRoomTimer(roomId);
+                }
 
                 console.log(`Player ${player.name} disconnected from room ${roomId}. Waiting for reconnection...`);
                 emitRoomState(io, room, 'room_updated');
@@ -329,6 +436,7 @@ function handleSocketEvents(io, socket) {
                         io.to(roomId).emit('room_terminated', `${player.name} failed to reconnect.`);
                         rooms.delete(roomId);
                         clearRoomTimer(roomId);
+                        clearInactivityTimer(roomId);
                         roomCleanupTimers.delete(roomId);
                         console.log(`Room ${roomId} terminated after grace period.`);
                         if (currentRoom.isPublic) broadcastPublicRooms(io);
@@ -353,6 +461,7 @@ function handleSocketEvents(io, socket) {
             room.characters = characters;
             room.settings = settings || { timerLimit: null };
             room.gameState = 'SELECTING';
+            resetInactivityTimer(io, roomId);
             emitRoomState(io, room, 'game_started');
             if (room.isPublic) broadcastPublicRooms(io);
         }
@@ -367,6 +476,7 @@ function handleSocketEvents(io, socket) {
             if (player && !player.isReady) {
                 player.selectedCharacter = character;
                 player.isReady = true;
+                resetInactivityTimer(io, roomId);
 
                 // If both players selected, start playing
                 if (room.players.length === 2 && room.players.every(p => p.isReady)) {
@@ -409,7 +519,7 @@ function handleSocketEvents(io, socket) {
             if (typeof message === 'object' && message.type === 'DIVIDER') {
                 msgData = {
                     ...message,
-                    timestamp: new Date().toLocaleTimeString()
+                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 };
             } else {
                 const safeMessage = sanitizeInput(message, 250);
@@ -418,9 +528,10 @@ function handleSocketEvents(io, socket) {
                 msgData = {
                     sender: socket.id,
                     text: filterProfanity(safeMessage),
-                    timestamp: new Date().toLocaleTimeString()
+                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 };
             }
+            resetInactivityTimer(io, roomId);
             room.chat.push(msgData);
             io.to(roomId).emit('receive_message', msgData);
         }
@@ -455,6 +566,7 @@ function handleSocketEvents(io, socket) {
     // Typing Status
     socket.on('typing', ({ roomId }) => {
         if (!checkRateLimit(socket.id, 'typing', 200)) return;
+        resetInactivityTimer(io, roomId);
         socket.to(roomId).emit('opponent_typing');
     });
 
@@ -473,6 +585,7 @@ function handleSocketEvents(io, socket) {
 
             const opponent = room.players.find(p => p.id !== socket.id);
             if (!opponent || !opponent.selectedCharacter) return;
+            resetInactivityTimer(io, roomId);
             const isCorrect = character.name === opponent.selectedCharacter.name;
 
             if (isCorrect) {
@@ -565,7 +678,7 @@ function handleSocketEvents(io, socket) {
                 const msgData = {
                     type: 'DIVIDER',
                     text: `${guesser?.name} has guessed ${character.name}`,
-                    timestamp: new Date().toLocaleTimeString()
+                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 };
                 room.chat.push(msgData);
                 io.to(roomId).emit('receive_message', msgData);
@@ -585,6 +698,7 @@ function handleSocketEvents(io, socket) {
         const room = rooms.get(roomId);
         if (room && room.players.some(p => p.id === socket.id)) {
             clearRoomTimer(roomId);
+            resetInactivityTimer(io, roomId);
             room.gameState = 'LOBBY'; // Allow re-selecting mode/timer
             room.characters = [];
             room.settings = { timerLimit: null };
@@ -601,7 +715,7 @@ function handleSocketEvents(io, socket) {
             room.chat.push({
                 type: 'DIVIDER',
                 text: 'New Round Started',
-                timestamp: new Date().toLocaleTimeString()
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             });
 
             emitRoomState(io, room, 'room_updated');
@@ -619,6 +733,7 @@ function handleSocketEvents(io, socket) {
             const activePlayer = room.players[room.turn];
             if (!activePlayer || activePlayer.id !== socket.id) return;
 
+            resetInactivityTimer(io, roomId);
             room.turn = (room.turn + 1) % room.players.length;
             room.turnStartTime = Date.now();
             emitRoomState(io, room, 'room_updated');
@@ -634,6 +749,7 @@ function handleSocketEvents(io, socket) {
         if (room) {
             const player = room.players.find(p => p.id === socket.id);
             if (player) {
+                resetInactivityTimer(io, roomId);
                 if (Array.isArray(eliminatedIds)) {
                     player.eliminatedIds = eliminatedIds.slice(0, 30);
                     player.eliminatedCount = player.eliminatedIds.length;
@@ -642,6 +758,15 @@ function handleSocketEvents(io, socket) {
                 }
                 emitRoomState(io, room, 'room_updated');
             }
+        }
+    });
+
+    // Lightweight Room Activity Ping (e.g. clicking/highlighting character cards in lobby/selection per FR-ROOM-08)
+    socket.on('room_activity', ({ roomId }) => {
+        if (!checkRateLimit(socket.id, 'room_activity', 500)) return;
+        const room = rooms.get(roomId);
+        if (room && room.players.some(p => p.id === socket.id)) {
+            resetInactivityTimer(io, roomId);
         }
     });
 }

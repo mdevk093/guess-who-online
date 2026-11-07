@@ -24,8 +24,12 @@ app.get('/presets', (req, res) => {
     res.json(presets);
 });
 
-// Serve default characters and other static files
-app.use(express.static(__dirname));
+// Explicitly serve public static assets and defaultCharacters.json (NFR-SEC-07)
+app.use('/public', express.static(path.join(__dirname, 'public')));
+app.get('/defaultCharacters.json', (req, res) => {
+    const defaultCharacters = require('./defaultCharacters.json');
+    res.json(defaultCharacters);
+});
 
 // Serve built client in production
 if (process.env.NODE_ENV === 'production') {

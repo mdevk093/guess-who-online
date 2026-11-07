@@ -9,7 +9,6 @@ const Landing = () => {
     const [roomCode, setRoomCode] = useState('');
     const [isJoining, setIsJoining] = useState(false);
     const [isViewingLobbies, setIsViewingLobbies] = useState(false);
-    const [isPublicRoom, setIsPublicRoom] = useState(true);
     const [hideFullLobbies, setHideFullLobbies] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
 
@@ -39,7 +38,7 @@ const Landing = () => {
     const handlePlayAsGuest = () => {
         if (!name) return;
         continueAsGuest();
-        createRoom(name, isPublicRoom);
+        createRoom(name, true);
     };
 
     const handleJoinAsGuest = () => {
@@ -146,37 +145,6 @@ const Landing = () => {
 
                         {!isJoining && !isViewingLobbies ? (
                             <div className="space-y-4 pt-2">
-                                {/* Public / Private Room Toggle */}
-                                <div className="flex items-center justify-between bg-slate-50 p-3 rounded-2xl border border-slate-200/80">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${isPublicRoom ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-200 text-slate-500'}`}>
-                                            {isPublicRoom ? (
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                            ) : (
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <span className="text-xs font-black text-slate-800 block leading-none">
-                                                {isPublicRoom ? 'Public Lobby' : 'Private Lobby'}
-                                            </span>
-                                            <span className="text-[10px] font-semibold text-slate-400">
-                                                {isPublicRoom ? 'Visible in public browser' : 'Invite code / link only'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsPublicRoom(!isPublicRoom)}
-                                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isPublicRoom
-                                            ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-200'
-                                            : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-100'
-                                            }`}
-                                    >
-                                        {isPublicRoom ? 'Public' : 'Private'}
-                                    </button>
-                                </div>
-
                                 <button
                                     onClick={handlePlayAsGuest}
                                     disabled={!name}

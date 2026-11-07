@@ -362,6 +362,18 @@ export const GameProvider = ({ children }) => {
         }
     }, [room, socket]);
 
+    const kickPlayer = React.useCallback((targetPlayerId) => {
+        if (room && socket && targetPlayerId) {
+            socket.emit('kick_player', { roomId: room.id, targetPlayerId });
+        }
+    }, [room, socket]);
+
+    const pingRoomActivity = React.useCallback(() => {
+        if (room && socket) {
+            socket.emit('room_activity', { roomId: room.id });
+        }
+    }, [room, socket]);
+
     useEffect(() => {
         if (room?.gameState === 'PLAYING') {
             console.log("🎮 Turn changed to index:", room.turn);
@@ -397,6 +409,8 @@ export const GameProvider = ({ children }) => {
             updateEliminatedCount,
             reportPlayer,
             leaveRoom,
+            kickPlayer,
+            pingRoomActivity,
             user,
             session,
             isGuest,

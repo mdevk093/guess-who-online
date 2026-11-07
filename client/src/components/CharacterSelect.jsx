@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useGame } from '../context/GameContext';
+import { useGame, decodeHtmlEntity } from '../context/GameContext';
 
 const CharacterSelect = () => {
-    const { room, playerName, startGame, selectCharacter, toggleRoomPublic, socket, leaveRoom } = useGame();
+    const { room, playerName, startGame, selectCharacter, toggleRoomPublic, socket, leaveRoom, kickPlayer, pingRoomActivity } = useGame();
     const [mode, setMode] = useState('default'); // 'default', 'custom', or one of the preset keys
     const [presets, setPresets] = useState({});
     const [localCharacters, setLocalCharacters] = useState([]);
@@ -13,6 +13,7 @@ const CharacterSelect = () => {
     const [uploading, setUploading] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
     const isHost = room.players.find(p => p.id === socket.id)?.isHost;
 
     useEffect(() => {
@@ -143,7 +144,7 @@ const CharacterSelect = () => {
                             </div>
 
                             <button
-                                onClick={leaveRoom}
+                                onClick={() => room.players.length > 1 ? setShowLeaveConfirm(true) : leaveRoom()}
                                 className="p-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-500 hover:text-rose-600 rounded-xl transition-all shadow-sm active:scale-95 shrink-0"
                                 title="Leave Room"
                             >
@@ -205,7 +206,7 @@ const CharacterSelect = () => {
                             </div>
 
                             <button
-                                onClick={leaveRoom}
+                                onClick={() => room.players.length > 1 ? setShowLeaveConfirm(true) : leaveRoom()}
                                 className="p-2 sm:p-2.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-500 hover:text-rose-600 rounded-xl transition-all shadow-sm active:scale-95"
                                 title="Leave Room"
                             >
@@ -233,7 +234,12 @@ const CharacterSelect = () => {
                         {charactersToDisplay.map(char => (
                             <div
                                 key={char.id}
-                                onClick={() => !me?.isReady && setSelectedId(char.id)}
+                                onClick={() => {
+                                    if (!me?.isReady) {
+                                        setSelectedId(char.id);
+                                        pingRoomActivity();
+                                    }
+                                }}
                                 className={`group relative bg-white rounded-lg sm:rounded-3xl cursor-pointer transition-all duration-300 transform overflow-hidden ${!me?.isReady && 'hover:-translate-y-1 sm:hover:-translate-y-2'
                                     } border ${selectedId === char.id
                                         ? 'border-indigo-600 ring-2 sm:ring-4 ring-indigo-50 shadow-2xl scale-[1.02]'
@@ -267,17 +273,29 @@ const CharacterSelect = () => {
                 </div>
 
                 {/* Sidebar - Players */}
-                <div className="w-full lg:w-80 p-4 sm:p-8 bg-white border-t lg:border-t-0 lg:border-l border-slate-100 flex flex-col gap-6 sm:gap-8 overflow-y-auto">
-                    <div className="hidden sm:block">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">Players Connected</h3>
-                        <div className="space-y-3">
+                <div className="w-full lg:w-80 p-4 sm:p-8 bg-white border-t lg:border-t-0 lg:border-l border-slate-100 flex flex-col gap-4 sm:gap-8 overflow-y-auto">
+                    <div>
+                        <h3 className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-[0.2em] mb-2 sm:mb-4">Players Connected</h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-1 gap-2 sm:gap-3">
                             {room.players.map(p => (
-                                <div key={p.id} className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${p.isReady ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-100'
+                                <div key={p.id} className={`flex items-center justify-between gap-2 p-2.5 sm:p-4 rounded-xl sm:rounded-2xl border transition-all ${p.isReady ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-100'
                                     }`}>
-                                    <div className={`w-3 h-3 rounded-full shadow-sm ${p.isReady ? 'bg-emerald-500 shadow-emerald-200 animate-pulse' : 'bg-slate-300'}`} />
-                                    <span className={`font-bold ${p.isReady ? 'text-emerald-700' : 'text-slate-600'}`}>
-                                        {p.name} {p.id === socket.id && "(You)"}
-                                    </span>
+                                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                                        <div className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full shadow-sm shrink-0 ${p.isReady ? 'bg-emerald-500 shadow-emerald-200 animate-pulse' : 'bg-slate-300'}`} />
+                                        <span className={`font-bold text-xs sm:text-base truncate ${p.isReady ? 'text-emerald-700' : 'text-slate-600'}`}>
+                                            {decodeHtmlEntity(p.name)} {p.id === socket.id && "(You)"}
+                                        </span>
+                                    </div>
+                                    {isHost && p.id !== socket.id && (room.gameState === 'LOBBY' || room.gameState === 'SELECTING') && (
+                                        <button
+                                            type="button"
+                                            onClick={() => kickPlayer(p.id)}
+                                            className="px-2 sm:px-2.5 py-1 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200 hover:border-rose-600 rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shrink-0"
+                                            title={`Remove ${decodeHtmlEntity(p.name)} from lobby`}
+                                        >
+                                            Kick
+                                        </button>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -295,6 +313,35 @@ const CharacterSelect = () => {
                     </button>
                 </div>
             </div>
+
+            {/* Leave Confirmation Modal (NFR-UX-04) */}
+            {showLeaveConfirm && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[150] p-6 animate-in fade-in duration-200" onClick={() => setShowLeaveConfirm(false)}>
+                    <div className="bg-white rounded-[2rem] p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                        <div className="w-14 h-14 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                        </div>
+                        <h3 className="text-xl font-black text-slate-900 mb-2">Leave Lobby?</h3>
+                        <p className="text-slate-500 text-sm font-medium leading-relaxed mb-6">
+                            Leaving now will close the room for both players.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowLeaveConfirm(false)}
+                                className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-sm rounded-xl transition-all active:scale-95"
+                            >
+                                Stay
+                            </button>
+                            <button
+                                onClick={leaveRoom}
+                                className="flex-1 py-3.5 bg-rose-600 hover:bg-rose-700 text-white font-black text-sm rounded-xl shadow-lg shadow-rose-100 transition-all active:scale-95"
+                            >
+                                Leave Room
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Bottom-Sheet Settings Modal for Host */}
             {isSettingsOpen && isHost && room.gameState === 'LOBBY' && (

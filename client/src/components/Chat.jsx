@@ -1,16 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useGame } from '../context/GameContext';
 
-const Chat = () => {
+const Chat = ({ isOpen = true }) => {
     const { room, sendMessage, socket, sendTypingStatus, opponentTyping, reportPlayer } = useGame();
     const [input, setInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
+    const chatContainerRef = useRef(null);
     const chatEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
 
-    const scrollToBottom = () => {
-        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
+    const scrollToBottom = React.useCallback(() => {
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+    }, []);
 
     const handleReport = (msg) => {
         if (window.confirm('Report this message for offensive content?')) {
@@ -19,9 +22,14 @@ const Chat = () => {
         }
     };
 
+    // Auto-scroll to bottom on new messages, typing indicator changes, or when chat drawer opens (FR-CHAT-07)
     useEffect(() => {
         scrollToBottom();
-    }, [room?.chat]);
+        const rafId = requestAnimationFrame(() => {
+            scrollToBottom();
+        });
+        return () => cancelAnimationFrame(rafId);
+    }, [room?.chat?.length, room?.chat, opponentTyping, isOpen, scrollToBottom]);
 
     const handleSend = (e) => {
         e.preventDefault();
@@ -60,8 +68,8 @@ const Chat = () => {
     }, []);
 
     return (
-        <div className="flex flex-col h-full bg-slate-50/50 rounded-2xl sm:rounded-[2rem] border border-slate-100 overflow-hidden shadow-sm">
-            <div className="p-3 sm:p-4 bg-indigo-600 flex items-center justify-between">
+        <div className="flex flex-col h-full min-h-0 bg-slate-50/50 rounded-2xl sm:rounded-[2rem] border border-slate-100 overflow-hidden shadow-sm">
+            <div className="p-3 sm:p-4 bg-indigo-600 flex items-center justify-between shrink-0">
                 <span className="text-[10px] sm:text-xs font-black text-white/90 uppercase tracking-[0.2em]">Game Chat</span>
                 <div className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-emerald-400 rounded-full animate-pulse shadow-sm shadow-emerald-400" />
@@ -69,7 +77,7 @@ const Chat = () => {
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div ref={chatContainerRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
                 {room?.chat?.length === 0 && (
                     <div className="h-full flex flex-col items-center justify-center text-slate-300 opacity-50 space-y-2">
                         <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -107,7 +115,7 @@ const Chat = () => {
                                     }`}>
                                     {msg.text}
                                     <div className={`text-[9px] sm:text-[10px] mt-1 opacity-50 font-bold ${isMe ? 'text-white text-right' : 'text-slate-400'}`}>
-                                        {msg.timestamp}
+                                        {msg.timestamp?.replace(/(:\d{2}):\d{2}/, '$1')}
                                     </div>
                                 </div>
                             </div>
@@ -130,7 +138,7 @@ const Chat = () => {
                 <div ref={chatEndRef} />
             </div>
 
-            <form onSubmit={handleSend} className="p-3 sm:p-4 bg-white border-t border-slate-100 shadow-[0_-10px_20px_-5px_rgba(0,0,0,0.02)]">
+            <form onSubmit={handleSend} className="p-3 sm:p-4 bg-white border-t border-slate-100 shadow-[0_-10px_20px_-5px_rgba(0,0,0,0.02)] shrink-0">
                 <div className="relative group">
                     <input
                         type="text"

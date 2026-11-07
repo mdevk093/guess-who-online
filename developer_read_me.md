@@ -126,10 +126,25 @@ All critical game states (eliminated cards, current turn, guess limits) are stor
 
 ---
 
+## 🔒 Static Asset Directory Exposure Hardening (`NFR-SEC-07`)
+
+- **Vulnerability**: Previously, `server/index.js` included `app.use(express.static(__dirname))`. In production, serving the entire `server/` root exposed sensitive server files (e.g. `db.js`, `handlers/socketHandler.js`, `package.json`, `crop_characters.js`) to direct HTTP GET requests.
+- **Remediation**:
+  - Removed `express.static(__dirname)`.
+  - Whitelisted only the necessary client endpoints:
+    - `app.use('/public', express.static(path.join(__dirname, 'public')))` (game character portraits and classic/flag PNGs).
+    - `app.use('/uploads', express.static(path.join(__dirname, 'uploads')))` (custom character uploads).
+    - `app.get('/defaultCharacters.json', (req, res) => res.json(defaultCharacters))` (default avatar character definitions).
+    - `app.get('/presets', (req, res) => res.json(presets))` (preset themes).
+  - All other root server files now respond with HTTP 404 (`Cannot GET /file`).
+
+---
+
 ## 📋 Changelog of Recent Fixes & Commits
 
 | Date | Commit / Scope | Summary of Changes |
 | :--- | :--- | :--- |
+| **2026-11-06** | `NFR-SEC-07`, `FR-CHAT-07`, `FR-GAME-09`, `FR-ROOM-06`, `FR-ROOM-07`, `NFR-UX-04`, `NFR-REL-04` & `FR-ROOM-08` | • **(`NFR-SEC-07`)** Hardened server static directory exposure: removed `app.use(express.static(__dirname))` from `server/index.js` and explicitly whitelisted only `/public`, `/uploads`, `/presets`, and `/defaultCharacters.json`.<br>• **(`FR-CHAT-07`)** Fixed chat auto-scrolling in `Chat.jsx` and `GameBoard.jsx` using direct container `scrollTop = scrollHeight` inside `requestAnimationFrame`, bounded flex heights (`min-h-0`, `sm:h-[45vh] lg:h-full`), re-scrolling on typing indicator or mobile drawer open, and formatted message timestamps as `HH:MM` without seconds.<br>• **(`FR-GAME-09` & `FR-ROOM-06`)** Added a **Main Menu** exit button (`leaveRoom`) on the Victory / Game Over modal in `GameBoard.jsx` and updated `leave_room` in `socketHandler.js` to use `socket.to(roomId).emit('room_terminated', ...)` so only the remaining opponent is notified when a player leaves.<br>• **(`FR-ROOM-07`)** Added Host **Kick** button in `CharacterSelect.jsx` (`kick_player` in `socketHandler.js` & `GameContext.jsx`) so hosts can remove AFK players during `LOBBY` or `SELECTING` without destroying the room.<br>• **(`NFR-UX-04`)** Added quit confirmation modal (`showLeaveConfirm`) in `GameBoard.jsx` and `CharacterSelect.jsx` before leaving an active match or 2-player lobby.<br>• **(`NFR-REL-04`)** Paused server & client turn timers while an opponent is disconnected (resuming from the exact remaining time on reconnect) and added a live 20-second visual countdown and progress bar inside the Opponent Disconnected modal (`GameBoard.jsx`, `socketHandler.js`).<br>• **(`FR-ROOM-08`)** Implemented 3-minute (`180000ms`) room inactivity auto-abort (`resetInactivityTimer` in `socketHandler.js`) that resets on chats, typing, guesses, card eliminations, character selections, and turn changes, and terminates rooms idle for 3 minutes. |
 | **2026-11-06** | `FR-ROOM-03` & `NFR-UX-02` | • Synced browser address bar URL to `?room=CODE` upon creating or joining a room (`GameContext.jsx`), preserved `?room=CODE` on invite links (`Landing.jsx`), and reset URL to `/` on room exit or termination. |
 | **2026-11-06** | `9860f9d` (`FR-ROOM-04` & `FR-GAME-06`) | • Implemented **View Lobbies** browser in `Landing.jsx` showing live public lobbies with open lobbies sorted to the top and a **Hide Full** filter toggle.<br>• Added Public/Private room toggles on room creation (`Landing.jsx`) and inside the lobby (`CharacterSelect.jsx` via `toggle_room_public`).<br>• Added Web Audio API lobby join chime (`playJoinSound` on `player_joined_sound`). |
 | **2026-11-06** | `4e9c6be` (`NFR-REL-01`, `NFR-REL-02` & `FR-ROOM-05`) | • Persisted `eliminatedIds` across both server player state and `sessionStorage`/`localStorage` (`eliminated_ids_<roomId>`) so browser refreshes restore flipped cards.<br>• Fixed auto-rejoin race condition on page refresh by triggering `attemptAutoRejoin` directly inside `newSocket.on('connect')` and isolating per-tab `player_name` via `sessionStorage`.<br>• Redacted opponent's `eliminatedIds` array in `sanitizeRoomForPlayer` so opponents only see `eliminatedCount`.<br>• Auto-recorded wrong guess eliminations server-side and cleared stale `eliminatedIds` on rematch/room exit. |

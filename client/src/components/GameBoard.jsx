@@ -30,6 +30,8 @@ const GameBoard = () => {
     const [timeLeft, setTimeLeft] = useState(null);
     const [showMyCharacterModal, setShowMyCharacterModal] = useState(false);
     const [showInfoHub, setShowInfoHub] = useState(false);
+    const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+    const [disconnectTimeLeft, setDisconnectTimeLeft] = useState(20);
 
     // Track unread messages on mobile
     React.useEffect(() => {
@@ -93,7 +95,7 @@ const GameBoard = () => {
     const won = isGameOver && room.result.winnerId === socket.id;
     const correctCharacter = isGameOver ? room.result.correctCharacter : null;
 
-    // Timer Logic
+    // Timer Logic (pauses while opponent is disconnected per NFR-REL-04)
     React.useEffect(() => {
         if (!room.settings?.timerLimit || isGameOver || room.gameState !== 'PLAYING') {
             setTimeLeft(null);
@@ -101,6 +103,13 @@ const GameBoard = () => {
         }
 
         const timerLimitMs = room.settings.timerLimit * 60 * 1000;
+
+        if (opponent && !opponent.connected) {
+            if (room.turnRemainingMs !== undefined && room.turnRemainingMs !== null) {
+                setTimeLeft(Math.ceil(room.turnRemainingMs / 1000));
+            }
+            return;
+        }
 
         const updateTimer = () => {
             const elapsed = Date.now() - room.turnStartTime;
@@ -112,7 +121,25 @@ const GameBoard = () => {
         updateTimer();
         const interval = setInterval(updateTimer, 1000);
         return () => clearInterval(interval);
-    }, [room.turnStartTime, room.settings?.timerLimit, isGameOver, room.gameState]);
+    }, [room.turnStartTime, room.turnRemainingMs, room.settings?.timerLimit, isGameOver, room.gameState, opponent?.connected]);
+
+    // 20-Second Disconnect Countdown UI (NFR-REL-04)
+    React.useEffect(() => {
+        if (!opponent || opponent.connected || isGameOver) {
+            setDisconnectTimeLeft(20);
+            return;
+        }
+
+        const startTimestamp = opponent.disconnectedAt || Date.now();
+        const updateDisconnectCountdown = () => {
+            const elapsedSec = Math.floor((Date.now() - startTimestamp) / 1000);
+            setDisconnectTimeLeft(Math.max(0, 20 - elapsedSec));
+        };
+
+        updateDisconnectCountdown();
+        const interval = setInterval(updateDisconnectCountdown, 250);
+        return () => clearInterval(interval);
+    }, [opponent?.connected, opponent?.disconnectedAt, isGameOver]);
 
     const formatTime = (seconds) => {
         if (seconds === null) return null;
@@ -189,7 +216,7 @@ const GameBoard = () => {
                     </div>
 
                     <button
-                        onClick={leaveRoom}
+                        onClick={() => setShowLeaveConfirm(true)}
                         className="p-2 sm:p-2.5 bg-rose-50 border border-rose-100 rounded-xl sm:rounded-2xl text-rose-500 hover:bg-rose-600 hover:text-white transition-all shadow-sm"
                         title="Quit Game"
                     >
@@ -256,9 +283,9 @@ const GameBoard = () => {
 
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+            <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden relative">
                 {/* Board (Always visible as background on mobile) */}
-                <div className="flex-1 overflow-y-auto p-3 sm:p-8 bg-slate-50/50 transition-all duration-300 block">
+                <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-8 bg-slate-50/50 transition-all duration-300 block">
                     <div className="grid grid-cols-5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-1.5 sm:gap-6 pb-24 sm:pb-8">
                         {(room.characters && room.characters.length > 0 ? room.characters : []).map((char) => (
                             <div
@@ -294,9 +321,9 @@ const GameBoard = () => {
                 {/* Sidebar / Mobile Chat Bottom Sheet */}
                 {/* Desktop: Static Sidebar. Mobile: Sliding Bottom Sheet anchored above the action bar */}
                 <div className={`
-                    flex flex-col gap-4 sm:gap-6 p-4 pt-1 sm:p-8 overflow-hidden bg-white sm:border-l border-slate-100 
+                    flex flex-col gap-4 sm:gap-6 p-4 pt-1 sm:p-8 min-h-0 overflow-hidden bg-white sm:border-l border-slate-100 
                     transition-transform duration-300 ease-out shadow-[0_-20px_40px_-15px_rgba(0,0,0,0.1)] sm:shadow-none
-                    sm:relative sm:bottom-auto sm:left-auto sm:right-auto sm:h-auto sm:translate-y-0 sm:z-auto sm:rounded-none sm:w-full lg:w-96
+                    sm:relative sm:bottom-auto sm:left-auto sm:right-auto sm:h-[45vh] lg:h-full sm:translate-y-0 sm:z-auto sm:rounded-none sm:w-full lg:w-96
                     fixed bottom-[84px] left-3 right-3 z-40 h-[55vh] rounded-[2rem]
                     ${mobileTab === 'board' ? 'translate-y-[150%] sm:translate-y-0 sm:flex' : 'translate-y-0 flex'}
                 `}>
@@ -335,7 +362,7 @@ const GameBoard = () => {
                     {/* Chat Section */}
                     {/* The chat flex container stretches to fill available height in the bottom sheet */}
                     <div className="flex-1 min-h-0 flex flex-col">
-                        <Chat />
+                        <Chat isOpen={mobileTab === 'chat'} />
                     </div>
 
                     {/* Action Buttons (Moved from Header - Hidden on Mobile) */}
@@ -357,21 +384,30 @@ const GameBoard = () => {
                     </div>
                 </div>
 
-                {/* Reconnection Overlay */}
+                {/* Reconnection Overlay (NFR-REL-04) */}
                 {opponent && !opponent.connected && !isGameOver && (
                     <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm z-[80] flex items-center justify-center p-6 animate-in fade-in duration-300">
                         <div className="bg-white rounded-[2rem] p-8 max-w-sm w-full text-center shadow-2xl border border-slate-100 transform animate-in zoom-in duration-300">
-                            <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                                <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                            <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-6 relative">
+                                <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
                             </div>
                             <h3 className="text-xl font-black text-slate-900 mb-2">Opponent Disconnected</h3>
-                            <p className="text-slate-500 text-sm font-medium leading-relaxed">
-                                Waiting for <span className="text-indigo-600 font-bold">{opponent.name}</span> to rejoin...
+                            <p className="text-slate-500 text-sm font-medium leading-relaxed mb-5">
+                                Waiting for <span className="text-indigo-600 font-bold">{decodeHtmlEntity(opponent.name)}</span> to rejoin...
                             </p>
-                            <div className="mt-8 flex items-center justify-center gap-2">
-                                <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                                <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                                <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-bounce" />
+                            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4">
+                                <div className="flex items-center justify-between text-xs font-black uppercase tracking-widest mb-2">
+                                    <span className="text-slate-400">Auto-closing in</span>
+                                    <span className={`text-base tabular-nums ${disconnectTimeLeft <= 5 ? 'text-rose-500 animate-pulse' : 'text-amber-600'}`}>
+                                        {disconnectTimeLeft}s
+                                    </span>
+                                </div>
+                                <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                                    <div
+                                        className={`h-full transition-all duration-300 rounded-full ${disconnectTimeLeft <= 5 ? 'bg-rose-500' : 'bg-amber-500'}`}
+                                        style={{ width: `${(disconnectTimeLeft / 20) * 100}%` }}
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -440,6 +476,35 @@ const GameBoard = () => {
                         >
                             Close
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Leave Match Confirmation Modal (NFR-UX-04) */}
+            {showLeaveConfirm && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[160] p-6 animate-in fade-in duration-200" onClick={() => setShowLeaveConfirm(false)}>
+                    <div className="bg-white rounded-[2rem] p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                        <div className="w-14 h-14 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                            <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                        </div>
+                        <h3 className="text-xl font-black text-slate-900 mb-2">Leave Active Match?</h3>
+                        <p className="text-slate-500 text-sm font-medium leading-relaxed mb-6">
+                            Leaving now will end the game for both players.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowLeaveConfirm(false)}
+                                className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-sm rounded-xl transition-all active:scale-95"
+                            >
+                                Stay in Game
+                            </button>
+                            <button
+                                onClick={leaveRoom}
+                                className="flex-1 py-3.5 bg-rose-600 hover:bg-rose-700 text-white font-black text-sm rounded-xl shadow-lg shadow-rose-100 transition-all active:scale-95"
+                            >
+                                Leave Match
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -516,12 +581,18 @@ const GameBoard = () => {
                         )}
                     </div>
 
-                    <div className="flex flex-col gap-4 w-full max-w-xs">
+                    <div className="flex flex-col gap-3 w-full max-w-xs">
                         <button
                             onClick={restartGame}
                             className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 rounded-[2rem] font-black text-xl text-white shadow-2xl shadow-indigo-200 transition-all transform hover:scale-105 active:scale-95"
                         >
                             Play Again
+                        </button>
+                        <button
+                            onClick={leaveRoom}
+                            className="w-full py-4 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 rounded-[2rem] font-black text-base transition-all transform hover:scale-105 active:scale-95"
+                        >
+                            Main Menu
                         </button>
                     </div>
                 </div>
