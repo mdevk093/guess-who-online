@@ -533,12 +533,12 @@ const GameBoard = () => {
 
                         {room.result?.message && (
                             <p className="text-xl font-black text-slate-900 mb-2">
-                                {room.result.message}
+                                {decodeHtmlEntity(room.result.message)}
                             </p>
                         )}
 
                         <p className="text-lg text-slate-500 font-medium">
-                            The secret character was <span className="text-slate-900 font-black underline decoration-sky-500 decoration-4 underline-offset-4">{correctCharacter?.name}</span>
+                            The secret character was <span className="text-slate-900 font-black underline decoration-sky-500 decoration-4 underline-offset-4">{decodeHtmlEntity(correctCharacter?.name)}</span>
                         </p>
 
                         {user && (

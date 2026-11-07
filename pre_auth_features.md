@@ -11,7 +11,7 @@ This document details all high-priority gameplay fixes, lobby management feature
 | **NFR-SEC-07** | Server Root Directory Exposure Hardening | Critical | `[Implemented]` | `server/index.js` |
 | **FR-ROOM-08** | Inactive Match Cancellation (3-Minute Inactivity Auto-Abort) | High | `[Implemented]` | `socketHandler.js`, `GameContext.jsx`, `CharacterSelect.jsx` |
 | **FR-CHAT-07** | Auto-Scroll Chat to Bottom on New Messages | High | `[Implemented]` | `Chat.jsx`, `GameBoard.jsx` |
-| **FR-CHAT-06** | Decode HTML Entities (`&#39;`, `&quot;`) in Chat & Player Names | High | `[Planned]` | `Chat.jsx`, `GameBoard.jsx`, `CharacterSelect.jsx` |
+| **FR-CHAT-06** | Decode HTML Entities (`&#39;`, `&quot;`) in Chat & Player Names | High | `[Implemented]` | `Chat.jsx`, `GameBoard.jsx`, `CharacterSelect.jsx`, `Landing.jsx` |
 | **FR-GAME-09** | "Main Menu" / Leave Button on Victory & Defeat (`GAME_OVER`) Modal | High | `[Implemented]` | `GameBoard.jsx` |
 | **NFR-REL-04** | 20-Second Disconnect Countdown UI & Turn Timer Pause on Disconnect | High | `[Implemented]` | `GameBoard.jsx`, `socketHandler.js` |
 | **FR-ROOM-07** | Host "Kick Player" Action in Pre-Game Lobbies | High | `[Implemented]` | `CharacterSelect.jsx`, `GameContext.jsx`, `socketHandler.js` |

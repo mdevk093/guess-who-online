@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGame, decodeHtmlEntity } from '../context/GameContext';
 
 const THEME_DECKS = [
@@ -42,8 +42,9 @@ const THEME_DECKS = [
         id: 'custom',
         title: 'Custom Upload',
         emoji: '✨',
-        desc: 'Upload 16–24 of your own family or friend photos.',
-        isCustom: true
+        desc: 'Upload 16–24 of your own family or friend photos (Cloud Sync).',
+        isCustom: true,
+        isLocked: true
     }
 ];
 
@@ -54,7 +55,7 @@ const getInitials = (name) => {
 };
 
 const CharacterSelect = () => {
-    const { room, startGame, selectCharacter, toggleRoomPublic, socket, leaveRoom, kickPlayer, pingRoomActivity } = useGame();
+    const { room, startGame, selectCharacter, restartGame, toggleRoomPublic, socket, leaveRoom, kickPlayer, pingRoomActivity, error } = useGame();
     const [mode, setMode] = useState('default');
     const [presets, setPresets] = useState({});
     const [localCharacters, setLocalCharacters] = useState([]);
@@ -62,15 +63,23 @@ const CharacterSelect = () => {
     const [timerEnabled, setTimerEnabled] = useState(false);
     const [timerLimit, setTimerLimit] = useState(2);
     const [guessLimit, setGuessLimit] = useState(null);
-    const [uploading, setUploading] = useState(false);
     const [copied, setCopied] = useState(false);
     const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
     const [showDeckPreview, setShowDeckPreview] = useState(false);
-    const fileInputRef = useRef(null);
+    const [proNotice, setProNotice] = useState('');
 
     const isHost = room.players.find(p => p.id === socket.id)?.isHost;
     const me = room.players.find(p => p.id === socket.id);
     const opponent = room.players.find(p => p.id !== socket.id);
+    const connectedPlayersCount = room.players.filter(p => p.connected !== false).length;
+    const hasTwoPlayers = connectedPlayersCount >= 2;
+
+    // Clear selectedId whenever returning to LOBBY (e.g. after kicking a player in SELECTING or starting a rematch)
+    useEffect(() => {
+        if (room.gameState === 'LOBBY') {
+            setSelectedId(null);
+        }
+    }, [room.gameState]);
 
     useEffect(() => {
         fetch('/presets')
@@ -90,36 +99,20 @@ const CharacterSelect = () => {
         }
     }, [mode, presets]);
 
-    const handleFileUpload = (e) => {
-        const files = Array.from(e.target.files);
-        if (files.length === 0) return;
-        if (files.length < 16 || files.length > 24) {
-            alert('Please upload between 16 and 24 pictures.');
-            return;
-        }
-
-        const customChars = files.map((file, index) => ({
-            id: index + 1,
-            name: file.name.replace(/\.[^/.]+$/, '').slice(0, 18) || `Person ${index + 1}`,
-            image: URL.createObjectURL(file)
-        }));
-        setUploading(true);
-        setTimeout(() => {
-            setLocalCharacters(customChars);
-            setUploading(false);
-        }, 300);
-    };
-
     const handleDeckClick = (deck) => {
         if (!isHost || room.gameState !== 'LOBBY') return;
         pingRoomActivity();
-        setMode(deck.id);
-        if (deck.isCustom && fileInputRef.current) {
-            fileInputRef.current.click();
+        if (deck.isLocked) {
+            setProNotice('Custom photo decks with multiplayer cloud sync are available in the Pro Tier!');
+            setTimeout(() => setProNotice(''), 4000);
+            return;
         }
+        setProNotice('');
+        setMode(deck.id);
     };
 
     const handleStart = () => {
+        if (!hasTwoPlayers) return;
         if (localCharacters.length > 0) {
             startGame(localCharacters, {
                 timerLimit: timerEnabled ? timerLimit : null,
@@ -141,15 +134,6 @@ const CharacterSelect = () => {
 
     return (
         <div className="min-h-screen bg-[#f8fafc] text-slate-800 p-4 md:p-8 flex flex-col">
-            <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleFileUpload}
-                className="hidden"
-            />
-
             <div className="max-w-7xl w-full mx-auto space-y-6 flex-1 flex flex-col">
 
                 {/* Top App Header */}
@@ -367,6 +351,19 @@ const CharacterSelect = () => {
                                 </button>
                             </div>
 
+                            {proNotice && (
+                                <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold flex items-center justify-between animate-in fade-in duration-200">
+                                    <span>🔒 {proNotice}</span>
+                                    <button type="button" onClick={() => setProNotice('')} className="text-amber-600 hover:text-amber-900 font-black px-2">✕</button>
+                                </div>
+                            )}
+
+                            {error && (
+                                <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold animate-in fade-in duration-200">
+                                    {decodeHtmlEntity(error)}
+                                </div>
+                            )}
+
                             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {THEME_DECKS.map((deck) => {
                                     const isActive = mode === deck.id;
@@ -376,7 +373,7 @@ const CharacterSelect = () => {
                                             onClick={() => handleDeckClick(deck)}
                                             className={`relative rounded-2xl p-4 text-left transition-all ${isHost ? 'cursor-pointer' : 'cursor-default'} ${isActive
                                                 ? 'bg-sky-50/50 border-2 border-sky-500 shadow-md shadow-sky-100 transform -translate-y-0.5'
-                                                : `bg-white border border-slate-200 hover:border-slate-300 shadow-sm ${deck.isCustom ? 'border-dashed' : ''}`
+                                                : `bg-white border border-slate-200 hover:border-slate-300 shadow-sm ${deck.isLocked ? 'border-dashed bg-slate-50/60 opacity-85' : ''}`
                                                 }`}
                                         >
                                             <div className={`w-full h-20 rounded-xl mb-3 flex items-center justify-center text-3xl overflow-hidden relative border ${isActive
@@ -389,28 +386,21 @@ const CharacterSelect = () => {
                                                         Active
                                                     </span>
                                                 )}
+                                                {deck.isLocked && (
+                                                    <span className="absolute top-2 right-2 text-[9px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-md">
+                                                        🔒 Pro Tier
+                                                    </span>
+                                                )}
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <h4 className="text-sm font-black text-slate-900">{deck.title}</h4>
                                                 {deck.isCustom && (
                                                     <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border bg-amber-100 text-amber-800 border-amber-200">
-                                                        UPLOAD
+                                                        PRO
                                                     </span>
                                                 )}
                                             </div>
                                             <p className="text-[11px] text-slate-500 mt-1 leading-snug">{deck.desc}</p>
-                                            {deck.isCustom && isActive && isHost && (
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        fileInputRef.current?.click();
-                                                    }}
-                                                    className="mt-2.5 w-full py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-[11px] font-bold transition-all"
-                                                >
-                                                    {uploading ? 'Uploading...' : 'Choose Photos (16–24)'}
-                                                </button>
-                                            )}
                                         </div>
                                     );
                                 })}
@@ -551,10 +541,15 @@ const CharacterSelect = () => {
                                 <button
                                     type="button"
                                     onClick={handleStart}
-                                    disabled={localCharacters.length === 0}
-                                    className="w-full sm:w-auto px-8 py-3.5 rounded-2xl text-sm font-black uppercase tracking-wider text-white bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-500 hover:to-blue-600 shadow-xl shadow-sky-600/30 disabled:opacity-40 transition-all transform hover:scale-[1.02] active:scale-95"
+                                    disabled={!hasTwoPlayers || localCharacters.length === 0}
+                                    title={!hasTwoPlayers ? 'Invite an opponent to join before starting' : ''}
+                                    className="w-full sm:w-auto px-8 py-3.5 rounded-2xl text-sm font-black uppercase tracking-wider text-white bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-500 hover:to-blue-600 shadow-xl shadow-sky-600/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] disabled:hover:scale-100 active:scale-95"
                                 >
-                                    {localCharacters.length === 0 ? 'Loading Deck...' : 'Lock In Game Mode & Start →'}
+                                    {!hasTwoPlayers
+                                        ? 'Waiting for Opponent (1/2)...'
+                                        : localCharacters.length === 0
+                                            ? 'Loading Deck...'
+                                            : 'Lock In Game Mode & Start →'}
                                 </button>
                             ) : (
                                 <div className="w-full sm:w-auto px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider bg-sky-50 border border-sky-200 text-sky-700 flex items-center justify-center gap-2">
@@ -691,6 +686,16 @@ const CharacterSelect = () => {
                             >
                                 {me?.isReady ? '✓ Locked In (Waiting...)' : 'Lock Character →'}
                             </button>
+
+                            {isHost && (
+                                <button
+                                    type="button"
+                                    onClick={restartGame}
+                                    className="w-full py-2.5 rounded-xl font-bold text-xs text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-all"
+                                >
+                                    ← Back to Match Setup
+                                </button>
+                            )}
                         </div>
                     </div>
                 )}

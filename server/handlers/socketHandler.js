@@ -401,6 +401,16 @@ function handleSocketEvents(io, socket) {
             roomCleanupTimers.delete(roomId);
         }
 
+        // If the room was in SELECTING, return the Host to LOBBY and clear ready/selection state so the Host is never stranded (FR-ROOM-07)
+        if (room.gameState === 'SELECTING') {
+            room.gameState = 'LOBBY';
+            room.characters = [];
+        }
+        room.players.forEach(p => {
+            p.isReady = false;
+            p.selectedCharacter = null;
+        });
+
         resetInactivityTimer(io, roomId);
         emitRoomState(io, room, 'room_updated');
         console.log(`Host ${hostPlayer.name} kicked ${kickedPlayer.name} from room ${roomId}.`);
@@ -458,6 +468,10 @@ function handleSocketEvents(io, socket) {
         if (!checkRateLimit(socket.id, 'game_action', 500)) return;
         const room = rooms.get(roomId);
         if (room && room.players[0]?.id === socket.id && room.gameState === 'LOBBY') {
+            const connectedPlayers = room.players.filter(p => p.connected);
+            if (connectedPlayers.length < 2) {
+                return socket.emit('error', 'Wait for an opponent to join before starting the match.');
+            }
             room.characters = characters;
             room.settings = settings || { timerLimit: null };
             room.gameState = 'SELECTING';

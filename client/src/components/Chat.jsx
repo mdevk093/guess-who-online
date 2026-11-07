@@ -113,7 +113,7 @@ const Chat = ({ isOpen = true }) => {
                             <div key={i} className="flex items-center gap-3 my-3">
                                 <div className="flex-1 h-px bg-slate-200"></div>
                                 <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border bg-white border-slate-200 text-slate-500 whitespace-nowrap">
-                                    {msg.text}
+                                    {decodeHtmlEntity(msg.text)}
                                 </span>
                                 <div className="flex-1 h-px bg-slate-200"></div>
                             </div>
@@ -147,7 +147,7 @@ const Chat = ({ isOpen = true }) => {
                                         title={formattedTime}
                                         className={`px-3.5 py-2.5 rounded-2xl bg-sky-600 text-white shadow-sm shadow-sky-600/15 leading-relaxed text-left break-words ${showSenderHeader ? 'rounded-tr-sm' : ''}`}
                                     >
-                                        {msg.text}
+                                        {decodeHtmlEntity(msg.text)}
                                     </div>
                                 </div>
                                 {showSenderHeader ? (
@@ -190,7 +190,7 @@ const Chat = ({ isOpen = true }) => {
                                         title={formattedTime}
                                         className={`px-3.5 py-2.5 rounded-2xl border bg-slate-100 border-slate-200 text-slate-800 leading-relaxed shadow-sm break-words ${showSenderHeader ? 'rounded-tl-sm' : ''}`}
                                     >
-                                        {msg.text}
+                                        {decodeHtmlEntity(msg.text)}
                                     </div>
                                     {!showSenderHeader && (
                                         <button

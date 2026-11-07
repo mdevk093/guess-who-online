@@ -4,8 +4,15 @@ import { supabase } from '../supabaseClient';
 import Auth from './Auth';
 
 const Landing = () => {
-    const { createRoom, joinRoom, publicRooms, fetchPublicRooms, error, user, stats, continueAsGuest } = useGame();
-    const [name, setName] = useState('');
+    const { createRoom, joinRoom, publicRooms, fetchPublicRooms, error, user, stats, continueAsGuest, playerName, setPlayerName } = useGame();
+    const [name, setName] = useState(() => {
+        if (playerName) return playerName;
+        try {
+            return sessionStorage.getItem('player_name') || localStorage.getItem('player_name') || '';
+        } catch {
+            return '';
+        }
+    });
     const [roomCode, setRoomCode] = useState('');
     const [isJoining, setIsJoining] = useState(false);
     const [isViewingLobbies, setIsViewingLobbies] = useState(false);
@@ -26,10 +33,30 @@ const Landing = () => {
     }, []);
 
     useEffect(() => {
-        if (user) {
-            setName(user.user_metadata?.username || '');
+        if (user?.user_metadata?.username && !name) {
+            const username = user.user_metadata.username;
+            setName(username);
+            setPlayerName(username);
+            try {
+                sessionStorage.setItem('player_name', username);
+                localStorage.setItem('player_name', username);
+            } catch {
+                // ignore storage errors
+            }
         }
-    }, [user]);
+    }, [user, name, setPlayerName]);
+
+    const handleNameChange = (e) => {
+        const val = e.target.value;
+        setName(val);
+        setPlayerName(val);
+        try {
+            sessionStorage.setItem('player_name', val);
+            localStorage.setItem('player_name', val);
+        } catch {
+            // ignore storage errors
+        }
+    };
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
@@ -134,7 +161,7 @@ const Landing = () => {
 
                 {error && (
                     <div className="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-sm text-center font-bold animate-in fade-in zoom-in max-w-md w-full shadow-sm">
-                        {error}
+                        {decodeHtmlEntity(error)}
                     </div>
                 )}
 
@@ -145,7 +172,7 @@ const Landing = () => {
                             <input
                                 type="text"
                                 value={name}
-                                onChange={(e) => setName(e.target.value)}
+                                onChange={handleNameChange}
                                 placeholder="Enter your display name..."
                                 maxLength={20}
                                 className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-sky-100 focus:border-sky-500 focus:outline-none text-slate-900 transition-all placeholder:text-slate-400 font-bold text-base"

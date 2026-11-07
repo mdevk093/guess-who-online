@@ -21,7 +21,13 @@ export const decodeHtmlEntity = function (str) {
 export const GameProvider = ({ children }) => {
     const [socket, setSocket] = useState(null);
     const [room, setRoom] = useState(null);
-    const [playerName, setPlayerName] = useState('');
+    const [playerName, setPlayerName] = useState(() => {
+        try {
+            return sessionStorage.getItem('player_name') || localStorage.getItem('player_name') || '';
+        } catch {
+            return '';
+        }
+    });
     const [user, setUser] = useState(null);
     const [session, setSession] = useState(null);
     const [isGuest, setIsGuest] = useState(false);
@@ -390,6 +396,7 @@ export const GameProvider = ({ children }) => {
             socket,
             room,
             playerName,
+            setPlayerName,
             error,
             createRoom,
             joinRoom,
