@@ -220,6 +220,7 @@ export const GameProvider = ({ children }) => {
             setRoom(room);
             sessionStorage.setItem('last_room_id', roomId);
             localStorage.setItem('last_room_id', roomId);
+            window.history.replaceState({}, document.title, `${window.location.pathname}?room=${roomId}`);
         });
 
         newSocket.on('room_updated', (updatedRoom) => {
@@ -227,6 +228,7 @@ export const GameProvider = ({ children }) => {
             if (updatedRoom?.id) {
                 sessionStorage.setItem('last_room_id', updatedRoom.id);
                 localStorage.setItem('last_room_id', updatedRoom.id);
+                window.history.replaceState({}, document.title, `${window.location.pathname}?room=${updatedRoom.id}`);
                 if (updatedRoom.gameState === 'LOBBY' || updatedRoom.gameState === 'SELECTING') {
                     sessionStorage.removeItem(`eliminated_ids_${updatedRoom.id}`);
                     localStorage.removeItem(`eliminated_ids_${updatedRoom.id}`);
@@ -264,6 +266,7 @@ export const GameProvider = ({ children }) => {
             setError(message);
             sessionStorage.removeItem('last_room_id');
             localStorage.removeItem('last_room_id');
+            window.history.replaceState({}, document.title, window.location.pathname);
             setTimeout(() => setError(''), 5000);
         });
 
@@ -353,6 +356,7 @@ export const GameProvider = ({ children }) => {
             localStorage.removeItem(`eliminated_ids_${room.id}`);
             sessionStorage.removeItem('last_room_id');
             localStorage.removeItem('last_room_id');
+            window.history.replaceState({}, document.title, window.location.pathname);
             socket.emit('leave_room', { roomId: room.id });
             setRoom(null);
         }

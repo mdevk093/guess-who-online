@@ -23,8 +23,6 @@ const Landing = () => {
         if (inviteRoom) {
             setRoomCode(inviteRoom.toUpperCase());
             setIsJoining(true);
-            // Optionally clear the URL parameter to keep it clean
-            window.history.replaceState({}, document.title, window.location.pathname);
         }
     }, []);
 
