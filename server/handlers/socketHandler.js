@@ -253,7 +253,7 @@ function handleSocketEvents(io, socket) {
                         roomCleanupTimers.delete(roomId);
                         console.log(`Room ${roomId} terminated after grace period.`);
                     }
-                }, 60000); // 60 seconds grace period
+                }, 20000); // 20 seconds grace period
 
                 roomCleanupTimers.set(roomId, cleanupTimeout);
 

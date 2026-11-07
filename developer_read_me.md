@@ -75,7 +75,7 @@ The game is designed to be "refresh-proof," allowing players to stay in their lo
 - **Auto-Rejoin**: Upon mounting or re-connecting, the `GameContext` checks for these stored values and automatically sends a `join_room` event to the server.
 
 ### Server-Side Grace Period
-- **Grace Period**: When a player disconnects, the server does *not* immediately terminate the room. Instead, it starts a 60-second `roomCleanupTimer`.
+- **Grace Period**: When a player disconnects, the server does *not* immediately terminate the room. Instead, it starts a 20-second `roomCleanupTimer`.
 - **State Preservation**: The player's data (identity, selected character, eliminated cards) remains in the `room.players` array with a `connected: false` flag.
 - **Re-identification**: When a "new" socket joins with the same `userId` (for logged-in users) or `playerName` (for guests), the server re-attaches them to their existing player object and cancels the cleanup timer.
 
