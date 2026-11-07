@@ -58,43 +58,48 @@ const Landing = () => {
         : publicRooms;
 
     return (
-        <div className="min-h-screen bg-slate-50 relative overflow-hidden flex flex-col">
+        <div className="min-h-screen bg-[#f8fafc] text-slate-800 relative overflow-hidden flex flex-col">
 
-            {/* Background Decorations */}
-            <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-indigo-500/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
-            <div className="absolute top-[20%] right-[-10%] w-96 h-96 bg-rose-500/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
-            <div className="absolute bottom-[-20%] left-[20%] w-96 h-96 bg-amber-500/20 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-4000"></div>
+            {/* Subtle Clean Studio Ambient Glow */}
+            <div className="absolute top-[-10%] left-[-5%] w-96 h-96 bg-sky-400/15 rounded-full mix-blend-multiply filter blur-3xl opacity-80 pointer-events-none"></div>
+            <div className="absolute top-[20%] right-[-5%] w-96 h-96 bg-blue-400/15 rounded-full mix-blend-multiply filter blur-3xl opacity-80 pointer-events-none"></div>
+            <div className="absolute bottom-[-15%] left-[25%] w-96 h-96 bg-indigo-400/10 rounded-full mix-blend-multiply filter blur-3xl opacity-70 pointer-events-none"></div>
 
             {/* Top Navigation Bar */}
-            <nav className="w-full px-6 py-4 flex items-center justify-between z-10 relative">
+            <nav className="w-full max-w-7xl mx-auto px-6 py-5 flex items-center justify-between z-10 relative border-b border-slate-200/80">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
-                        <span className="text-white text-xl font-black italic">?</span>
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-sky-600 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/25">
+                        <span className="text-white text-xl font-black">?</span>
                     </div>
-                    <span className="text-xl font-black text-slate-900 tracking-tight hidden sm:block">Guess Who?</span>
+                    <div className="flex items-center gap-2.5">
+                        <span className="text-xl font-black text-slate-900 tracking-tight">Guess Who?</span>
+                        <span className="hidden sm:inline-block text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-sky-50 border border-sky-200 text-sky-700">
+                            1v1 Deduction
+                        </span>
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-4">
                     {user ? (
-                        <div className="flex items-center gap-4 bg-white/60 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/50 shadow-sm">
-                            <div className="flex flex-col items-end mr-2">
-                                <span className="text-xs font-black text-slate-800">{user.user_metadata?.username}</span>
-                                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest leading-none">Logged In</span>
+                        <div className="flex items-center gap-4 bg-white px-4 py-2 rounded-2xl border border-slate-200 shadow-sm">
+                            <div className="flex flex-col items-end mr-1">
+                                <span className="text-xs font-black text-slate-900">{user.user_metadata?.username}</span>
+                                <span className="text-[9px] font-bold text-sky-600 uppercase tracking-widest leading-none mt-0.5">Logged In</span>
                             </div>
                             <div className="h-6 w-[1px] bg-slate-200"></div>
-                            <div className="flex gap-3 px-2">
+                            <div className="flex gap-3 px-1">
                                 <div className="flex flex-col items-center">
-                                    <span className="text-sm font-black text-emerald-500 leading-none">{stats?.wins || 0}</span>
-                                    <span className="text-[8px] font-bold text-slate-400 uppercase">Wins</span>
+                                    <span className="text-sm font-black text-emerald-600 leading-none">{stats?.wins || 0}</span>
+                                    <span className="text-[8px] font-bold text-slate-400 uppercase mt-0.5">Wins</span>
                                 </div>
                                 <div className="flex flex-col items-center">
                                     <span className="text-sm font-black text-rose-500 leading-none">{stats?.losses || 0}</span>
-                                    <span className="text-[8px] font-bold text-slate-400 uppercase">Losses</span>
+                                    <span className="text-[8px] font-bold text-slate-400 uppercase mt-0.5">Losses</span>
                                 </div>
                             </div>
                             <button
                                 onClick={handleLogout}
-                                className="ml-2 p-2 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors shrink-0"
+                                className="ml-1 p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-colors shrink-0"
                                 title="Log Out"
                             >
                                 <svg className="w-4 h-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
@@ -103,7 +108,7 @@ const Landing = () => {
                     ) : (
                         <button
                             onClick={() => setShowAuthModal(true)}
-                            className="px-6 py-2.5 bg-white text-indigo-600 font-black text-sm uppercase tracking-widest rounded-xl shadow-sm border border-slate-100 hover:bg-indigo-50 hover:border-indigo-100 transition-all"
+                            className="px-5 py-2.5 bg-white text-sky-700 font-black text-xs uppercase tracking-widest rounded-xl shadow-sm border border-slate-200 hover:bg-sky-50 hover:border-sky-300 transition-all"
                         >
                             Sign In
                         </button>
@@ -114,69 +119,73 @@ const Landing = () => {
             {/* Main Content Area */}
             <main className="flex-1 flex flex-col items-center justify-center p-6 z-10 relative">
 
-                <div className="text-center mb-10 max-w-2xl mx-auto">
-                    <h1 className="text-5xl sm:text-7xl font-black text-slate-900 tracking-tighter mb-4 drop-shadow-sm">
-                        Guess Who? <span className="text-indigo-600 block sm:inline">Online</span>
+                <div className="text-center mb-8 max-w-2xl mx-auto">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-50 border border-sky-200 text-sky-700 text-xs font-bold mb-4">
+                        <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></span>
+                        Real-Time Head-to-Head Multiplayer
+                    </div>
+                    <h1 className="text-5xl sm:text-6xl font-black text-slate-900 tracking-tight mb-3">
+                        Guess Who? <span className="text-sky-600">Online</span>
                     </h1>
-                    <p className="text-lg sm:text-xl text-slate-500 font-medium">
-                        The classic deduction game, reimagined for the web. Jump right into a quick match or sign in to track your career stats!
+                    <p className="text-base sm:text-lg text-slate-500 font-medium max-w-xl mx-auto">
+                        Ask smart Yes or No questions, eliminate suspects on your board, and deduce your opponent&apos;s secret character first.
                     </p>
                 </div>
 
                 {error && (
-                    <div className="mb-6 p-4 bg-rose-50 border border-rose-100 text-rose-600 rounded-2xl text-sm text-center font-medium animate-in fade-in zoom-in max-w-md w-full shadow-sm">
+                    <div className="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl text-sm text-center font-bold animate-in fade-in zoom-in max-w-md w-full shadow-sm">
                         {error}
                     </div>
                 )}
 
-                <div className="w-full max-w-md bg-white/80 backdrop-blur-xl rounded-[2.5rem] p-8 shadow-2xl border border-white/50">
-                    <div className="space-y-6">
+                <div className="w-full max-w-md bg-white rounded-3xl p-7 sm:p-8 shadow-xl border border-slate-200">
+                    <div className="space-y-5">
                         <div>
-                            <label className="block text-[10px] font-black text-slate-400 mb-2 ml-1 uppercase tracking-widest">Player Name</label>
+                            <label className="block text-[10px] font-black text-slate-500 mb-2 ml-1 uppercase tracking-widest">Player Name</label>
                             <input
                                 type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="Enter your display name..."
                                 maxLength={20}
-                                className="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 focus:outline-none text-slate-900 transition-all placeholder:text-slate-300 font-bold shadow-sm text-lg"
+                                className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-sky-100 focus:border-sky-500 focus:outline-none text-slate-900 transition-all placeholder:text-slate-400 font-bold text-base"
                             />
                         </div>
 
                         {!isJoining && !isViewingLobbies ? (
-                            <div className="space-y-4 pt-2">
+                            <div className="space-y-3 pt-1">
                                 <button
                                     onClick={handlePlayAsGuest}
                                     disabled={!name}
-                                    className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-30 disabled:hover:bg-indigo-600 rounded-2xl font-black text-lg sm:text-xl text-white transition-all transform hover:scale-[1.02] shadow-xl shadow-indigo-200/50 active:scale-95 flex items-center justify-center gap-3"
+                                    className="w-full py-4 bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-500 hover:to-blue-600 disabled:opacity-40 rounded-2xl font-black text-base sm:text-lg text-white transition-all transform hover:scale-[1.01] shadow-lg shadow-sky-600/25 active:scale-95 flex items-center justify-center gap-2.5"
                                 >
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"></path></svg>
-                                    Create Room
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 4v16m8-8H4"></path></svg>
+                                    Create Match Lobby
                                 </button>
                                 <button
                                     onClick={() => {
                                         fetchPublicRooms();
                                         setIsViewingLobbies(true);
                                     }}
-                                    className="w-full py-4 border-2 border-indigo-100 bg-indigo-50/70 text-indigo-600 hover:bg-indigo-100/80 hover:border-indigo-200 rounded-2xl font-black text-lg transition-all active:scale-95 flex items-center justify-center gap-2.5"
+                                    className="w-full py-3.5 border border-sky-200 bg-sky-50/70 text-sky-700 hover:bg-sky-100/80 hover:border-sky-300 rounded-2xl font-black text-base transition-all active:scale-95 flex items-center justify-center gap-2.5"
                                 >
-                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                    View Lobbies
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    Browse Public Lobbies
                                     {publicRooms.filter(r => !r.isFull).length > 0 && (
-                                        <span className="px-2 py-0.5 bg-indigo-600 text-white rounded-full text-xs font-black">
+                                        <span className="px-2 py-0.5 bg-sky-600 text-white rounded-full text-xs font-black">
                                             {publicRooms.filter(r => !r.isFull).length}
                                         </span>
                                     )}
                                 </button>
                                 <button
                                     onClick={() => setIsJoining(true)}
-                                    className="w-full py-4 border-2 border-slate-100 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:border-slate-200 rounded-2xl font-black text-lg transition-all active:scale-95"
+                                    className="w-full py-3.5 border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:border-slate-300 rounded-2xl font-black text-base transition-all active:scale-95"
                                 >
-                                    Join with Code
+                                    Join with Room Code
                                 </button>
                             </div>
                         ) : isViewingLobbies ? (
-                            <div className="space-y-4 pt-2 animate-in fade-in slide-in-from-bottom-4">
+                            <div className="space-y-4 pt-1 animate-in fade-in slide-in-from-bottom-4">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -188,8 +197,8 @@ const Landing = () => {
                                         type="button"
                                         onClick={() => setHideFullLobbies(!hideFullLobbies)}
                                         className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all active:scale-95 ${hideFullLobbies
-                                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-100'
-                                            : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                                            ? 'bg-sky-600 text-white border-sky-600 shadow-sm'
+                                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                                             }`}
                                     >
                                         {hideFullLobbies ? '✓ Open Only' : 'Hide Full'}
@@ -197,7 +206,7 @@ const Landing = () => {
                                 </div>
 
                                 {displayedPublicRooms.length === 0 ? (
-                                    <div className="py-8 px-4 bg-slate-50/70 rounded-2xl border border-dashed border-slate-200 text-center">
+                                    <div className="py-8 px-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center">
                                         <p className="text-xs font-bold text-slate-400">
                                             {hideFullLobbies && publicRooms.length > 0
                                                 ? 'No open lobbies right now. Toggle filter to see full rooms.'
@@ -212,16 +221,16 @@ const Landing = () => {
                                                 <div
                                                     key={pubRoom.roomId}
                                                     className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all ${isJoinable
-                                                        ? 'bg-white border-slate-200 shadow-sm hover:border-indigo-200'
-                                                        : 'bg-slate-50/80 border-slate-100 opacity-60'
+                                                        ? 'bg-white border-slate-200 shadow-sm hover:border-sky-300'
+                                                        : 'bg-slate-50 border-slate-200 opacity-60'
                                                         }`}
                                                 >
                                                     <div className="flex flex-col min-w-0 pr-3">
                                                         <div className="flex items-center gap-2">
-                                                            <span className="text-sm font-black text-slate-800 truncate">
+                                                            <span className="text-sm font-black text-slate-900 truncate">
                                                                 {decodeHtmlEntity(pubRoom.hostName)}&apos;s Lobby
                                                             </span>
-                                                            <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                                            <span className="text-[10px] font-black text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-md uppercase tracking-wider">
                                                                 {pubRoom.roomId}
                                                             </span>
                                                         </div>
@@ -244,7 +253,7 @@ const Landing = () => {
                                                         onClick={() => handleJoinPublicRoom(pubRoom.roomId)}
                                                         title={!name ? 'Enter your Player Name above to join' : ''}
                                                         className={`px-4 py-2 rounded-xl font-black text-xs uppercase tracking-widest shrink-0 transition-all ${isJoinable
-                                                            ? 'bg-indigo-600 hover:bg-indigo-700 disabled:opacity-30 text-white shadow-sm shadow-indigo-100 active:scale-95'
+                                                            ? 'bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-white shadow-sm shadow-sky-600/20 active:scale-95'
                                                             : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                                                             }`}
                                                     >
@@ -257,7 +266,7 @@ const Landing = () => {
                                 )}
 
                                 {!name && displayedPublicRooms.some(r => !r.isFull) && (
-                                    <p className="text-[10px] font-bold text-amber-600 text-center">
+                                    <p className="text-[11px] font-bold text-amber-600 text-center">
                                         ↑ Enter your Player Name above to join an open lobby
                                     </p>
                                 )}
@@ -265,37 +274,37 @@ const Landing = () => {
                                 <button
                                     type="button"
                                     onClick={() => setIsViewingLobbies(false)}
-                                    className="w-full py-4 border-2 border-slate-100 bg-slate-50 text-slate-600 rounded-2xl font-black transition-all active:scale-95 hover:bg-slate-100"
+                                    className="w-full py-3.5 border border-slate-200 bg-slate-50 text-slate-600 rounded-2xl font-black transition-all active:scale-95 hover:bg-slate-100"
                                 >
                                     Back
                                 </button>
                             </div>
                         ) : (
-                            <div className="space-y-4 pt-2 animate-in fade-in slide-in-from-bottom-4">
+                            <div className="space-y-4 pt-1 animate-in fade-in slide-in-from-bottom-4">
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-400 mb-2 ml-1 uppercase tracking-widest">Room Code</label>
+                                    <label className="block text-[10px] font-black text-slate-500 mb-2 ml-1 uppercase tracking-widest">Room Code</label>
                                     <input
                                         type="text"
                                         value={roomCode}
                                         onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                                        placeholder="EX: A1B2C3"
+                                        placeholder="EX: X9K2P4"
                                         maxLength={6}
-                                        className="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-rose-100 focus:border-rose-500 focus:outline-none text-slate-900 transition-all uppercase placeholder:text-slate-300 font-black shadow-sm text-center text-xl tracking-[0.2em]"
+                                        className="w-full px-6 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-sky-100 focus:border-sky-500 focus:outline-none text-slate-900 transition-all uppercase placeholder:text-slate-300 font-black text-center text-xl tracking-[0.2em]"
                                     />
                                 </div>
                                 <div className="flex gap-3">
                                     <button
                                         onClick={() => setIsJoining(false)}
-                                        className="px-6 py-4 border-2 border-slate-100 bg-slate-50 text-slate-600 rounded-2xl font-black transition-all active:scale-95 hover:bg-slate-100"
+                                        className="px-6 py-3.5 border border-slate-200 bg-slate-50 text-slate-600 rounded-2xl font-black transition-all active:scale-95 hover:bg-slate-100"
                                     >
                                         Back
                                     </button>
                                     <button
                                         onClick={handleJoinAsGuest}
                                         disabled={!name || !roomCode}
-                                        className="flex-1 py-4 bg-rose-600 hover:bg-rose-700 disabled:opacity-30 rounded-2xl font-black text-lg text-white shadow-xl shadow-rose-200/50 transition-all active:scale-95"
+                                        className="flex-1 py-3.5 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 rounded-2xl font-black text-base text-white shadow-lg shadow-sky-600/20 transition-all active:scale-95"
                                     >
-                                        Join with Code
+                                        Join Match
                                     </button>
                                 </div>
                             </div>
@@ -308,10 +317,10 @@ const Landing = () => {
             {showAuthModal && !user && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div
-                        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+                        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
                         onClick={() => setShowAuthModal(false)}
                     ></div>
-                    <div className="relative z-10 w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in duration-300">
+                    <div className="relative z-10 w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in duration-200">
                         <button
                             onClick={() => setShowAuthModal(false)}
                             className="absolute top-6 right-6 p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 transition-colors z-20"

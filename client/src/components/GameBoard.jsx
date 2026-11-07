@@ -2,8 +2,14 @@ import React, { useState } from 'react';
 import { useGame, decodeHtmlEntity } from '../context/GameContext';
 import Chat from './Chat';
 
+const getInitials = (name) => {
+    if (!name) return 'OP';
+    const clean = decodeHtmlEntity(name).trim();
+    return clean.slice(0, 2).toUpperCase();
+};
+
 const GameBoard = () => {
-    const { room, socket, makeGuess, restartGame, endTurn, updateEliminatedCount, sendMessage, leaveRoom, opponentTyping, user, stats } = useGame();
+    const { room, socket, makeGuess, restartGame, endTurn, updateEliminatedCount, leaveRoom, opponentTyping, user, stats } = useGame();
     const me = room.players.find(p => p.id === socket.id);
     const myTurn = room.players[room.turn].id === socket.id;
     const opponent = room.players.find(p => p.id !== socket.id);
@@ -29,7 +35,6 @@ const GameBoard = () => {
     const [unreadMessages, setUnreadMessages] = useState(false);
     const [timeLeft, setTimeLeft] = useState(null);
     const [showMyCharacterModal, setShowMyCharacterModal] = useState(false);
-    const [showInfoHub, setShowInfoHub] = useState(false);
     const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
     const [disconnectTimeLeft, setDisconnectTimeLeft] = useState(20);
 
@@ -37,7 +42,6 @@ const GameBoard = () => {
     React.useEffect(() => {
         if (room?.chat?.length > 0) {
             const lastMsg = room.chat[room.chat.length - 1];
-            // If message is from opponent and we are NOT on chat tab
             if (lastMsg.sender !== socket.id && mobileTab !== 'chat') {
                 setUnreadMessages(true);
             }
@@ -115,7 +119,6 @@ const GameBoard = () => {
             const elapsed = Date.now() - room.turnStartTime;
             const remaining = Math.max(0, timerLimitMs - elapsed);
             setTimeLeft(Math.ceil(remaining / 1000));
-            // Server-side startRoomTimer authoritatively advances the turn and posts the divider on timeout
         };
 
         updateTimer();
@@ -145,331 +148,307 @@ const GameBoard = () => {
         if (seconds === null) return null;
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
-        return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
     };
 
-    return (
-        <div className="flex flex-col h-screen overflow-hidden bg-slate-50 text-slate-900">
-            {/* Header */}
-            <div className="h-16 sm:h-20 flex items-center justify-between px-4 sm:px-8 bg-white border-b border-slate-100 shadow-sm relative z-[60]">
-                {/* Left: Logo */}
-                <div className="flex items-center gap-3 shrink-0">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-indigo-600 rounded-lg sm:rounded-[0.85rem] flex items-center justify-center shadow-lg shadow-indigo-100">
-                        <span className="text-white text-lg sm:text-xl font-black italic">?</span>
-                    </div>
-                    <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight hidden sm:block">Guess Who?</h1>
-                </div>
+    const totalSuspects = room?.characters?.length || 0;
+    const mySuspectsLeft = totalSuspects - eliminatedIds.length;
+    const oppSuspectsLeft = totalSuspects - (opponent?.eliminatedCount || 0);
+    const opponentName = opponent?.name ? decodeHtmlEntity(opponent.name) : 'Opponent';
 
-                {/* Center: Turn & Timer Hub (Mobile Single Pill) */}
-                <div className="flex-1 flex justify-center px-2 sm:px-0">
-                    <div className={`
-                        flex items-center gap-2 sm:gap-4 px-3 sm:px-6 py-1.5 sm:py-2 rounded-full transition-all shadow-sm border
-                        ${myTurn
-                            ? 'bg-indigo-600 text-white border-indigo-500 ring-4 ring-indigo-50'
-                            : 'bg-slate-50 text-slate-400 border-slate-100'
-                        }
-                    `}>
-                        <span className="text-[9px] sm:text-[11px] font-black tracking-widest uppercase whitespace-nowrap">
-                            {myTurn ? "Your Turn" : `${opponent?.name?.split(' ')[0] || 'Opp'}'s Turn`}
-                        </span>
+    return (
+        <div className="min-h-screen lg:h-screen lg:overflow-hidden bg-[#f8fafc] text-slate-800 p-3 sm:p-6 flex flex-col">
+            <div className="max-w-7xl w-full mx-auto flex-1 min-h-0 flex flex-col gap-4 sm:gap-5">
+
+                {/* Top Game Header Card */}
+                <div className="rounded-3xl p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3 border bg-white border-slate-200 shadow-sm shrink-0 relative z-30">
+                    <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+                        {/* Brand Logo */}
+                        <div className="flex items-center gap-2.5 pr-1 sm:pr-2">
+                            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-sky-600 via-blue-600 to-indigo-600 shadow-md shadow-sky-500/25 flex items-center justify-center font-black text-white text-lg shrink-0">
+                                ?
+                            </div>
+                            <span className="text-lg font-black text-slate-900 tracking-tight hidden xl:block">Guess Who?</span>
+                        </div>
+
+                        {/* Opponent Pill */}
+                        <div className="flex items-center gap-2.5 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl border bg-slate-50 border-slate-200">
+                            <div className="relative">
+                                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center font-black text-xs bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
+                                    {getInitials(opponent?.name)}
+                                </div>
+                                <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 border-2 rounded-full border-white ${opponent?.connected !== false ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
+                            </div>
+                            <div>
+                                <div className="text-xs font-bold text-slate-900 max-w-[110px] sm:max-w-[150px] truncate">{opponentName}</div>
+                                <div className="text-[11px] text-slate-500 flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
+                                    <span>{oppSuspectsLeft} suspects left</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Active Turn Pill */}
+                        <div className={`flex items-center gap-2.5 px-4 sm:px-5 py-2 rounded-2xl border transition-all ${myTurn
+                            ? 'bg-sky-50 border-sky-300'
+                            : 'bg-slate-50 border-slate-200'
+                            }`}>
+                            <span className={`w-2.5 h-2.5 rounded-full ${myTurn ? 'bg-sky-500 animate-ping' : 'bg-slate-400'}`}></span>
+                            <div className="flex flex-col">
+                                <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-widest ${myTurn ? 'text-sky-700' : 'text-slate-400'}`}>
+                                    {myTurn ? 'Active Turn' : 'Waiting'}
+                                </span>
+                                <span className="text-xs font-black text-slate-900">
+                                    {myTurn ? 'YOUR TURN TO ASK' : `${opponentName.split(' ')[0].toUpperCase()}'S TURN`}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Timer, Guesses & Actions */}
+                    <div className="flex items-center gap-2 sm:gap-2.5 ml-auto">
                         {timeLeft !== null && (
-                            <>
-                                <div className={`w-1 h-3 rounded-full ${myTurn ? 'bg-white/20' : 'bg-slate-200'}`} />
-                                <span className={`text-xs sm:text-lg font-black tabular-nums ${timeLeft < 10 && myTurn ? 'text-rose-200 animate-pulse' : ''}`}>
+                            <div className="px-3.5 py-2 rounded-2xl border bg-slate-50 border-slate-200 flex items-center gap-2">
+                                <span className="text-[10px] sm:text-xs font-bold uppercase text-slate-500">Timer</span>
+                                <span className={`text-sm sm:text-base font-black tabular-nums ${timeLeft < 10 && myTurn ? 'text-rose-600 animate-pulse' : 'text-slate-900'}`}>
                                     {formatTime(timeLeft)}
                                 </span>
-                            </>
-                        )}
-                    </div>
-                </div>
-
-                {/* Right: Info Toggle & Exit */}
-                <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-                    {/* Info Toggle Button (Mobile Only) */}
-                    <button
-                        onClick={() => setShowInfoHub(!showInfoHub)}
-                        className={`
-                            relative p-2 rounded-xl transition-all sm:hidden
-                            ${showInfoHub ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}
-                        `}
-                    >
-                        <div className="relative">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            {!showInfoHub && (room.settings?.guessLimit || room.settings?.timerLimit) && (
-                                <div className="absolute -top-1 -right-1 w-2 h-2 bg-indigo-500 rounded-full border-2 border-white" />
-                            )}
-                        </div>
-                    </button>
-
-                    {/* Desktop Stats (Static) */}
-                    <div className="hidden sm:flex items-center gap-3">
-                        {room.settings?.guessLimit !== null && (
-                            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl text-slate-900 shadow-sm border border-slate-100">
-                                <div className={`w-2 h-2 rounded-full ${(me?.guessesLeft || 0) <= 1 ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`} />
-                                <span className="text-sm font-black tabular-nums">{me?.guessesLeft ?? 0} Guesses</span>
                             </div>
                         )}
-                        <div className="flex items-center gap-2 bg-slate-900 text-white px-4 py-2 rounded-xl shadow-sm">
-                            <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Left:</span>
-                            <span className="text-sm font-black">{(room?.characters?.length || 0) - eliminatedIds.length}</span>
-                        </div>
-                    </div>
 
-                    <button
-                        onClick={() => setShowLeaveConfirm(true)}
-                        className="p-2 sm:p-2.5 bg-rose-50 border border-rose-100 rounded-xl sm:rounded-2xl text-rose-500 hover:bg-rose-600 hover:text-white transition-all shadow-sm"
-                        title="Quit Game"
-                    >
-                        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                    </button>
+                        {room.settings?.guessLimit !== null && room.settings?.guessLimit !== undefined && (
+                            <div className="hidden md:flex px-3.5 py-2 rounded-2xl border bg-slate-50 border-slate-200 items-center gap-2">
+                                <span className={`w-2 h-2 rounded-full ${(me?.guessesLeft || 0) <= 1 ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`} />
+                                <span className="text-xs font-black text-slate-800 tabular-nums">{me?.guessesLeft ?? 0} Guesses</span>
+                            </div>
+                        )}
+
+                        <button
+                            onClick={() => setGuessModalOpen(true)}
+                            disabled={!myTurn || isGameOver}
+                            className="hidden sm:flex font-black text-xs px-4 sm:px-5 py-2.5 rounded-xl shadow-lg transition-all items-center gap-1.5 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-white shadow-sky-600/25 active:scale-95"
+                        >
+                            <span>🎯</span> Guess Opponent
+                        </button>
+
+                        <button
+                            onClick={endTurn}
+                            disabled={!myTurn || isGameOver}
+                            className="hidden sm:inline-flex font-black text-xs px-4 py-2.5 rounded-xl border transition-all bg-slate-100 hover:bg-slate-200 disabled:opacity-40 text-slate-700 border-slate-200 active:scale-95"
+                        >
+                            End Turn
+                        </button>
+
+                        <button
+                            onClick={() => setShowLeaveConfirm(true)}
+                            className="p-2.5 bg-rose-50 hover:bg-rose-600 border border-rose-200 text-rose-600 hover:text-white rounded-xl transition-all shadow-sm active:scale-95"
+                            title="Quit Game"
+                        >
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                        </button>
+                    </div>
                 </div>
 
-                {/* Option 3: Info Hub Popup (Refined Design) */}
-                {showInfoHub && (
-                    <>
-                        <div className="fixed inset-0 z-[70] sm:hidden" onClick={() => setShowInfoHub(false)} />
-                        <div className="absolute top-14 right-4 sm:hidden w-64 bg-slate-900 text-white rounded-[1.5rem] shadow-2xl border border-white/10 p-5 mt-2 animate-in slide-in-from-top-2 fade-in duration-200 z-[80]">
-                            <div className="flex flex-col gap-6">
-                                {/* Suspects Section */}
-                                <div>
-                                    <div className="flex justify-between items-center mb-3">
-                                        <h4 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Suspects Remaining</h4>
-                                        <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="bg-white/5 rounded-xl p-3 border border-white/5">
-                                            <span className="text-[8px] font-bold text-white/30 uppercase block mb-1">YOU</span>
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-4 h-4 bg-indigo-500/20 rounded flex items-center justify-center">
-                                                    <svg className="w-2.5 h-2.5 text-indigo-400" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
-                                                </div>
-                                                <span className="text-xl font-black">{(room?.characters?.length || 0) - eliminatedIds.length}</span>
-                                            </div>
-                                        </div>
-                                        <div className="bg-white/5 rounded-xl p-3 border border-white/5">
-                                            <span className="text-[8px] font-bold text-white/30 uppercase block mb-1">{opponent?.name?.split(' ')[0] || 'OPP'}</span>
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-4 h-4 bg-white/10 rounded flex items-center justify-center">
-                                                    <svg className="w-2.5 h-2.5 text-white/40" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
-                                                </div>
-                                                <span className="text-xl font-black text-white/60">{(room?.characters?.length || 0) - (opponent?.eliminatedCount || 0)}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                {/* Main Columns: Suspects Board (8 cols) & Chat HUD (4 cols) */}
+                <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch relative pb-20 sm:pb-0">
 
-                                {/* Guesses Section */}
-                                {room.settings?.guessLimit && (
-                                    <div>
-                                        <div className="flex justify-between items-center mb-3">
-                                            <h4 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">Attempts Left</h4>
-                                            <span className="text-xs font-black text-indigo-400">{me?.guessesLeft}/{room.settings.guessLimit}</span>
-                                        </div>
-                                        <div className="flex gap-1.5">
-                                            {[...Array(room.settings.guessLimit)].map((_, i) => (
-                                                <div
-                                                    key={i}
-                                                    className={`h-2 flex-1 rounded-full transition-colors ${i < (me?.guessesLeft || 0) ? 'bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]' : 'bg-white/10'}`}
+                    {/* Left: Suspects Board (8 cols) */}
+                    <div className="lg:col-span-8 rounded-3xl p-4 sm:p-5 bg-white border border-slate-200 shadow-sm flex flex-col min-h-0">
+                        <div className="flex items-center justify-between mb-3.5 shrink-0">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Suspects Board</span>
+                                <span className="text-xs font-bold px-2.5 py-0.5 rounded-md border bg-slate-100 border-slate-200 text-sky-700">
+                                    {mySuspectsLeft} / {totalSuspects} Active
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-4 text-xs text-slate-600">
+                                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400"></span> Active</span>
+                                <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-400"></span> Eliminated</span>
+                            </div>
+                        </div>
+
+                        {/* Suspect Cards Grid */}
+                        <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2.5 sm:gap-3">
+                                {(room.characters && room.characters.length > 0 ? room.characters : []).map((char) => {
+                                    const isEliminated = eliminatedIds.includes(char.id);
+                                    const isMySecret = me?.selectedCharacter?.id === char.id;
+
+                                    if (isEliminated) {
+                                        return (
+                                            <div
+                                                key={char.id}
+                                                onClick={() => toggleEliminate(char.id)}
+                                                className="group relative rounded-2xl p-1.5 sm:p-2 text-center opacity-40 grayscale hover:opacity-65 transition-all cursor-pointer border border-slate-200 bg-slate-50"
+                                            >
+                                                <div className="aspect-[4/5] rounded-xl overflow-hidden mb-1.5 relative flex items-center justify-center bg-slate-900/20">
+                                                    <img
+                                                        src={char.image}
+                                                        alt={char.name}
+                                                        className="w-full h-full object-cover opacity-50"
+                                                    />
+                                                    <div className="absolute inset-0 flex items-center justify-center">
+                                                        <span className="text-rose-600 font-black text-2xl drop-shadow">✕</span>
+                                                    </div>
+                                                </div>
+                                                <div className="text-[11px] sm:text-xs font-bold line-through truncate text-slate-600">
+                                                    {char.name}
+                                                </div>
+                                                <div className="text-[9px] sm:text-[10px] text-slate-400">Eliminated</div>
+                                            </div>
+                                        );
+                                    }
+
+                                    return (
+                                        <div
+                                            key={char.id}
+                                            onClick={() => toggleEliminate(char.id)}
+                                            className={`group relative rounded-2xl p-1.5 sm:p-2 text-center transition-all cursor-pointer transform hover:-translate-y-1 ${isMySecret
+                                                ? 'bg-white border-2 border-sky-500 shadow-md shadow-sky-100 ring-2 ring-sky-100'
+                                                : 'bg-white border border-slate-200 hover:border-sky-400 shadow-sm'
+                                                }`}
+                                        >
+                                            <div className="aspect-[4/5] rounded-xl overflow-hidden mb-1.5 relative bg-slate-50">
+                                                <img
+                                                    src={char.image}
+                                                    alt={char.name}
+                                                    className="w-full h-full object-cover"
                                                 />
-                                            ))}
+                                                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-400 shadow"></span>
+                                            </div>
+                                            <div className="text-[11px] sm:text-xs font-black truncate text-slate-900">
+                                                {char.name}
+                                            </div>
+                                            <div className="text-[9px] sm:text-[10px] text-slate-500 truncate">
+                                                {isMySecret ? '★ Your Card' : 'Active'}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
+                                    );
+                                })}
                             </div>
                         </div>
-                    </>
-                )}
-            </div>
 
-
-            {/* Main Content */}
-            <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden relative">
-                {/* Board (Always visible as background on mobile) */}
-                <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-8 bg-slate-50/50 transition-all duration-300 block">
-                    <div className="grid grid-cols-5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-1.5 sm:gap-6 pb-24 sm:pb-8">
-                        {(room.characters && room.characters.length > 0 ? room.characters : []).map((char) => (
-                            <div
-                                key={char.id}
-                                onClick={() => toggleEliminate(char.id)}
-                                className={`group relative bg-white rounded-lg sm:rounded-3xl cursor-pointer transition-all duration-300 transform overflow-hidden border border-slate-900/10 ${eliminatedIds.includes(char.id)
-                                    ? 'opacity-30 grayscale scale-95 brightness-75'
-                                    : 'hover:-translate-y-1 shadow-xl shadow-slate-200/50'
-                                    }`}
-                            >
-                                <div className="aspect-[4/5] p-0.5 sm:p-3 overflow-hidden rounded-t-lg sm:rounded-t-3xl text-center flex items-center justify-center">
+                        {/* Secret Card Bottom Tray */}
+                        <div className="mt-4 pt-3.5 border-t border-slate-100 flex items-center justify-between shrink-0">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-xl border-2 bg-sky-50 border-sky-400 overflow-hidden shadow-sm p-0.5 shrink-0">
                                     <img
-                                        src={char.image}
-                                        alt={char.name}
-                                        className="w-full h-full object-cover rounded-md sm:rounded-2xl"
+                                        src={me?.selectedCharacter?.image}
+                                        alt={me?.selectedCharacter?.name || 'Secret Character'}
+                                        className="w-full h-full object-cover rounded-lg"
                                     />
                                 </div>
-                                <div className="p-1 sm:p-3 bg-white rounded-b-lg sm:rounded-b-3xl border-t border-slate-50 text-center">
-                                    <p className="text-[7px] sm:text-sm font-black text-slate-700 truncate">{char.name}</p>
+                                <div>
+                                    <span className="text-[10px] font-black uppercase tracking-widest block text-sky-600">
+                                        Your Secret Character
+                                    </span>
+                                    <span className="text-sm font-black text-slate-900">
+                                        {me?.selectedCharacter?.name} <span className="text-xs font-bold text-slate-400">(Keep Hidden!)</span>
+                                    </span>
                                 </div>
-
-                                {eliminatedIds.includes(char.id) && (
-                                    <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
-                                        <div className="w-full h-1 bg-rose-600/60 rotate-45 absolute" />
-                                        <div className="w-full h-1 bg-rose-600/60 -rotate-45 absolute" />
-                                    </div>
-                                )}
                             </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Sidebar / Mobile Chat Bottom Sheet */}
-                {/* Desktop: Static Sidebar. Mobile: Sliding Bottom Sheet anchored above the action bar */}
-                <div className={`
-                    flex flex-col gap-4 sm:gap-6 p-4 pt-1 sm:p-8 min-h-0 overflow-hidden bg-white sm:border-l border-slate-100 
-                    transition-transform duration-300 ease-out shadow-[0_-20px_40px_-15px_rgba(0,0,0,0.1)] sm:shadow-none
-                    sm:relative sm:bottom-auto sm:left-auto sm:right-auto sm:h-[45vh] lg:h-full sm:translate-y-0 sm:z-auto sm:rounded-none sm:w-full lg:w-96
-                    fixed bottom-[84px] left-3 right-3 z-40 h-[55vh] rounded-[2rem]
-                    ${mobileTab === 'board' ? 'translate-y-[150%] sm:translate-y-0 sm:flex' : 'translate-y-0 flex'}
-                `}>
-
-                    {/* Mobile Drag Handle Indicator */}
-                    <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto my-2 shrink-0 sm:hidden" />
-                    {/* Your Character Card (Hidden on Mobile as it's in the bottom bar) */}
-                    <div className="hidden sm:flex bg-slate-50/50 rounded-[2rem] p-4 border border-slate-100 shadow-sm items-center gap-4 shrink-0">
-                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl sm:rounded-3xl overflow-hidden border-4 border-white shadow-xl ring-1 ring-slate-900/10">
-                            <img src={me?.selectedCharacter?.image} alt="You" className="w-full h-full object-cover" />
-                        </div>
-                        <div>
-                            <span className="text-[8px] sm:text-[10px] font-black text-indigo-500 uppercase tracking-widest block mb-0.5 sm:mb-1">You selected</span>
-                            <h2 className="text-lg sm:text-2xl font-black text-slate-800 tracking-tight leading-tight">{me?.selectedCharacter?.name}</h2>
-                        </div>
-                    </div>
-
-                    {/* Suspects Tracking (Hidden on Mobile) */}
-                    <div className="hidden sm:grid grid-cols-2 gap-3 shrink-0">
-                        <div className="bg-slate-900 rounded-2xl p-4 text-white shadow-lg">
-                            <span className="text-[8px] font-black text-white/40 uppercase tracking-widest block mb-1">Your Suspects</span>
-                            <div className="flex items-end justify-between">
-                                <span className="text-3xl font-black tracking-tighter leading-none">{(room?.characters?.length || 0) - eliminatedIds.length}</span>
-                                <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Left</span>
-                            </div>
-                        </div>
-                        <div className="bg-indigo-600 rounded-2xl p-4 text-white shadow-lg">
-                            <span className="text-[8px] font-black text-white/60 uppercase tracking-widest block mb-1">{decodeHtmlEntity(opponent?.name)?.split(' ')[0] || 'Opponent'}'s Suspects</span>
-                            <div className="flex items-end justify-between">
-                                <span className="text-3xl font-black tracking-tighter leading-none">{(room?.characters?.length || 0) - (opponent?.eliminatedCount || 0)}</span>
-                                <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Left</span>
+                            <div className="text-xs text-slate-400 italic hidden sm:block">
+                                Opponent sees this as a hidden card
                             </div>
                         </div>
                     </div>
 
-                    {/* Chat Section */}
-                    {/* The chat flex container stretches to fill available height in the bottom sheet */}
-                    <div className="flex-1 min-h-0 flex flex-col">
+                    {/* Right: Deduction Chat HUD (4 cols on desktop, sliding drawer on mobile) */}
+                    <div className={`
+                        lg:col-span-4 flex flex-col min-h-0
+                        sm:relative sm:bottom-auto sm:left-auto sm:right-auto sm:h-[420px] lg:h-full sm:translate-y-0 sm:z-auto
+                        fixed bottom-[76px] left-3 right-3 z-40 h-[58vh] transition-transform duration-300 ease-out
+                        ${mobileTab === 'board' ? 'translate-y-[150%] sm:translate-y-0' : 'translate-y-0'}
+                    `}>
                         <Chat isOpen={mobileTab === 'chat'} />
                     </div>
 
-                    {/* Action Buttons (Moved from Header - Hidden on Mobile) */}
-                    <div className="hidden sm:flex gap-2 shrink-0">
-                        <button
-                            onClick={() => setGuessModalOpen(true)}
-                            disabled={!myTurn || isGameOver}
-                            className="flex-1 bg-rose-600 hover:bg-rose-700 disabled:opacity-30 py-3 sm:py-4 rounded-2xl sm:rounded-[2rem] font-black text-xs sm:text-sm text-white shadow-xl shadow-rose-100 transition-all active:scale-95"
-                        >
-                            Guess
-                        </button>
-                        <button
-                            onClick={endTurn}
-                            disabled={!myTurn || isGameOver}
-                            className="flex-1 bg-slate-900 hover:bg-slate-800 disabled:opacity-30 py-3 sm:py-4 rounded-2xl sm:rounded-[2rem] font-black text-xs sm:text-sm text-white shadow-xl shadow-slate-200 transition-all active:scale-95"
-                        >
-                            End Turn
-                        </button>
-                    </div>
-                </div>
-
-                {/* Reconnection Overlay (NFR-REL-04) */}
-                {opponent && !opponent.connected && !isGameOver && (
-                    <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm z-[80] flex items-center justify-center p-6 animate-in fade-in duration-300">
-                        <div className="bg-white rounded-[2rem] p-8 max-w-sm w-full text-center shadow-2xl border border-slate-100 transform animate-in zoom-in duration-300">
-                            <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-6 relative">
-                                <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
-                            </div>
-                            <h3 className="text-xl font-black text-slate-900 mb-2">Opponent Disconnected</h3>
-                            <p className="text-slate-500 text-sm font-medium leading-relaxed mb-5">
-                                Waiting for <span className="text-indigo-600 font-bold">{decodeHtmlEntity(opponent.name)}</span> to rejoin...
-                            </p>
-                            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4">
-                                <div className="flex items-center justify-between text-xs font-black uppercase tracking-widest mb-2">
-                                    <span className="text-slate-400">Auto-closing in</span>
-                                    <span className={`text-base tabular-nums ${disconnectTimeLeft <= 5 ? 'text-rose-500 animate-pulse' : 'text-amber-600'}`}>
-                                        {disconnectTimeLeft}s
-                                    </span>
+                    {/* Reconnection Overlay (NFR-REL-04) */}
+                    {opponent && !opponent.connected && !isGameOver && (
+                        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[80] flex items-center justify-center p-6 animate-in fade-in duration-300">
+                            <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl border border-slate-200 transform animate-in zoom-in duration-300">
+                                <div className="w-16 h-16 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-center mx-auto mb-6 relative">
+                                    <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
                                 </div>
-                                <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                                    <div
-                                        className={`h-full transition-all duration-300 rounded-full ${disconnectTimeLeft <= 5 ? 'bg-rose-500' : 'bg-amber-500'}`}
-                                        style={{ width: `${(disconnectTimeLeft / 20) * 100}%` }}
-                                    />
+                                <h3 className="text-xl font-black text-slate-900 mb-2">Opponent Disconnected</h3>
+                                <p className="text-slate-500 text-sm font-medium leading-relaxed mb-5">
+                                    Waiting for <span className="text-sky-600 font-bold">{opponentName}</span> to rejoin...
+                                </p>
+                                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                                    <div className="flex items-center justify-between text-xs font-black uppercase tracking-widest mb-2">
+                                        <span className="text-slate-400">Auto-closing in</span>
+                                        <span className={`text-base tabular-nums ${disconnectTimeLeft <= 5 ? 'text-rose-500 animate-pulse' : 'text-amber-600'}`}>
+                                            {disconnectTimeLeft}s
+                                        </span>
+                                    </div>
+                                    <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                                        <div
+                                            className={`h-full transition-all duration-300 rounded-full ${disconnectTimeLeft <= 5 ? 'bg-rose-500' : 'bg-amber-500'}`}
+                                            style={{ width: `${(disconnectTimeLeft / 20) * 100}%` }}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {/* Mobile Navigation Bar (Persistent Actions) */}
-                <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 p-3 flex items-center justify-between gap-3 z-50 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)] pb-safe">
-                    {/* Small Character Thumbnail */}
-                    <button
-                        onClick={() => setShowMyCharacterModal(true)}
-                        className="w-12 h-12 rounded-xl overflow-hidden border-2 border-slate-100 shadow-sm shrink-0 active:scale-95 transition-all"
-                    >
-                        <img src={me?.selectedCharacter?.image} alt="You" className="w-full h-full object-cover" />
-                    </button>
-
-                    {/* Action Buttons */}
-                    <div className="flex-1 flex gap-2">
+                    {/* Mobile Navigation Bar (Persistent Actions) */}
+                    <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-3 flex items-center justify-between gap-2.5 z-50 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.08)]">
                         <button
-                            onClick={() => setGuessModalOpen(true)}
-                            disabled={!myTurn || isGameOver}
-                            className="flex-1 bg-rose-600 hover:bg-rose-700 disabled:opacity-30 py-2.5 rounded-xl font-black text-xs text-white shadow-md shadow-rose-100 transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                            onClick={() => setShowMyCharacterModal(true)}
+                            className="w-11 h-11 rounded-xl overflow-hidden border-2 border-sky-400 bg-sky-50 shadow-sm shrink-0 active:scale-95 transition-all"
                         >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                            Guess
+                            <img src={me?.selectedCharacter?.image} alt="You" className="w-full h-full object-cover" />
                         </button>
-                        <button
-                            onClick={endTurn}
-                            disabled={!myTurn || isGameOver}
-                            className="flex-1 bg-slate-900 hover:bg-slate-800 disabled:opacity-30 py-2.5 rounded-xl font-black text-xs text-white shadow-md shadow-slate-200 transition-all active:scale-95"
-                        >
-                            End Turn
-                        </button>
-                    </div>
 
-                    {/* Chat Toggle Button */}
-                    <button
-                        onClick={() => setMobileTab(mobileTab === 'board' ? 'chat' : 'board')}
-                        className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all shrink-0 ${mobileTab === 'chat' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-slate-50 text-slate-400 border border-slate-200 hover:bg-slate-100'}`}
-                    >
-                        <div className="relative">
-                            {mobileTab === 'board' ? (
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                            ) : (
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
-                            )}
-                            {(unreadMessages || (opponentTyping && mobileTab !== 'chat')) && (
-                                <div className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white animate-pulse ${opponentTyping ? 'bg-indigo-500' : 'bg-rose-500'}`} />
-                            )}
+                        <div className="flex-1 flex gap-2">
+                            <button
+                                onClick={() => setGuessModalOpen(true)}
+                                disabled={!myTurn || isGameOver}
+                                className="flex-1 bg-sky-600 hover:bg-sky-500 disabled:opacity-40 py-2.5 rounded-xl font-black text-xs text-white shadow-md shadow-sky-600/20 transition-all active:scale-95 flex items-center justify-center gap-1"
+                            >
+                                <span>🎯</span> Guess
+                            </button>
+                            <button
+                                onClick={endTurn}
+                                disabled={!myTurn || isGameOver}
+                                className="flex-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 disabled:opacity-40 py-2.5 rounded-xl font-black text-xs text-slate-700 transition-all active:scale-95"
+                            >
+                                End Turn
+                            </button>
                         </div>
-                    </button>
+
+                        <button
+                            onClick={() => setMobileTab(mobileTab === 'board' ? 'chat' : 'board')}
+                            className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all shrink-0 border ${mobileTab === 'chat'
+                                ? 'bg-sky-50 text-sky-600 border-sky-200'
+                                : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
+                                }`}
+                        >
+                            <div className="relative">
+                                {mobileTab === 'board' ? (
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                ) : (
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                                )}
+                                {(unreadMessages || (opponentTyping && mobileTab !== 'chat')) && (
+                                    <div className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white animate-pulse ${opponentTyping ? 'bg-sky-500' : 'bg-rose-500'}`} />
+                                )}
+                            </div>
+                        </button>
+                    </div>
                 </div>
             </div>
 
             {/* My Character Modal (Mobile) */}
             {showMyCharacterModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[150] p-6 lg:hidden animate-in fade-in" onClick={() => setShowMyCharacterModal(false)}>
-                    <div className="bg-white rounded-[2rem] p-6 sm:p-8 shadow-2xl flex flex-col items-center animate-in zoom-in duration-300 w-full max-w-xs" onClick={e => e.stopPropagation()}>
-                        <div className="w-40 h-40 sm:w-48 sm:h-48 rounded-3xl overflow-hidden shadow-xl mb-4 border-4 border-slate-50">
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[150] p-6 lg:hidden animate-in fade-in" onClick={() => setShowMyCharacterModal(false)}>
+                    <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 flex flex-col items-center animate-in zoom-in duration-200 w-full max-w-xs" onClick={e => e.stopPropagation()}>
+                        <div className="w-40 h-40 rounded-3xl overflow-hidden shadow-lg mb-4 border-4 border-sky-100 bg-slate-50">
                             <img src={me?.selectedCharacter?.image} alt="You" className="w-full h-full object-cover" />
                         </div>
-                        <span className="text-xs font-black text-indigo-500 uppercase tracking-widest mb-1">Your Character</span>
-                        <h3 className="text-2xl sm:text-3xl font-black text-slate-900 text-center mb-6">{me?.selectedCharacter?.name}</h3>
+                        <span className="text-xs font-black text-sky-600 uppercase tracking-widest mb-1">Your Secret Character</span>
+                        <h3 className="text-2xl font-black text-slate-900 text-center mb-6">{me?.selectedCharacter?.name}</h3>
                         <button
                             onClick={() => setShowMyCharacterModal(false)}
                             className="w-full py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl transition-all active:scale-95"
@@ -482,9 +461,9 @@ const GameBoard = () => {
 
             {/* Leave Match Confirmation Modal (NFR-UX-04) */}
             {showLeaveConfirm && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[160] p-6 animate-in fade-in duration-200" onClick={() => setShowLeaveConfirm(false)}>
-                    <div className="bg-white rounded-[2rem] p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-                        <div className="w-14 h-14 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[160] p-6 animate-in fade-in duration-200" onClick={() => setShowLeaveConfirm(false)}>
+                    <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                        <div className="w-14 h-14 bg-rose-50 text-rose-500 border border-rose-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
                             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
                         </div>
                         <h3 className="text-xl font-black text-slate-900 mb-2">Leave Active Match?</h3>
@@ -500,7 +479,7 @@ const GameBoard = () => {
                             </button>
                             <button
                                 onClick={leaveRoom}
-                                className="flex-1 py-3.5 bg-rose-600 hover:bg-rose-700 text-white font-black text-sm rounded-xl shadow-lg shadow-rose-100 transition-all active:scale-95"
+                                className="flex-1 py-3.5 bg-rose-600 hover:bg-rose-700 text-white font-black text-sm rounded-xl shadow-lg shadow-rose-600/20 transition-all active:scale-95"
                             >
                                 Leave Match
                             </button>
@@ -509,28 +488,31 @@ const GameBoard = () => {
                 </div>
             )}
 
-            {/* Modals same but light theme... */}
+            {/* Make Your Guess Modal */}
             {guessModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-[100] p-4 sm:p-6">
-                    <div className="bg-white max-w-[95vw] sm:max-w-2xl w-fit rounded-[2rem] sm:rounded-[3rem] p-6 sm:p-10 shadow-2xl border border-slate-100 flex flex-col max-h-[90vh] animate-in zoom-in duration-300">
-                        <h3 className="text-xl sm:text-2xl font-black mb-4 sm:mb-6 text-slate-900 text-center">Make Your Guess</h3>
-                        <div className="flex-1 overflow-y-auto flex flex-wrap justify-center gap-2 sm:gap-3 pr-1">
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4 sm:p-6">
+                    <div className="bg-white max-w-[95vw] sm:max-w-2xl w-fit rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 flex flex-col max-h-[90vh] animate-in zoom-in duration-200">
+                        <div className="text-center mb-5">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-sky-600 block mb-1">Final Deduction</span>
+                            <h3 className="text-xl sm:text-2xl font-black text-slate-900">Guess Opponent&apos;s Secret Character</h3>
+                        </div>
+                        <div className="flex-1 overflow-y-auto flex flex-wrap justify-center gap-2.5 sm:gap-3 pr-1">
                             {room.characters.filter(char => !eliminatedIds.includes(char.id)).map(char => (
                                 <button
                                     key={char.id}
                                     onClick={() => handleGuess(char)}
-                                    className="group relative bg-slate-50 rounded-xl p-1 border border-slate-900/10 hover:border-indigo-600 transition-all transform hover:scale-105 w-24 sm:w-32"
+                                    className="group relative bg-white rounded-2xl p-2 border border-slate-200 hover:border-sky-500 hover:bg-sky-50/30 shadow-sm transition-all transform hover:-translate-y-1 w-24 sm:w-28"
                                 >
-                                    <div className="aspect-square rounded-lg overflow-hidden mb-1">
+                                    <div className="aspect-[4/5] rounded-xl overflow-hidden mb-1.5 bg-slate-50">
                                         <img src={char.image} alt={char.name} className="w-full h-full object-cover" />
                                     </div>
-                                    <p className="text-[10px] sm:text-xs font-bold text-slate-600 truncate">{char.name}</p>
+                                    <p className="text-xs font-black text-slate-800 truncate">{char.name}</p>
                                 </button>
                             ))}
                         </div>
                         <button
                             onClick={() => setGuessModalOpen(false)}
-                            className="mt-8 w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl font-black transition-all"
+                            className="mt-6 w-full py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-black transition-all"
                         >
                             Cancel
                         </button>
@@ -538,42 +520,40 @@ const GameBoard = () => {
                 </div>
             )}
 
-            {/* Result Backdrop */}
+            {/* Victory / Game Over Modal */}
             {isGameOver && (
-                <div className="fixed inset-0 bg-white/95 backdrop-blur-xl flex flex-col items-center justify-center z-[200] text-center p-8 animate-in fade-in zoom-in duration-500">
-                    <div className="mb-12 relative">
-                        <div className={`w-32 h-32 rounded-[3rem] mx-auto flex items-center justify-center shadow-2xl mb-8 ${won ? 'bg-emerald-500 shadow-emerald-200' : 'bg-rose-500 shadow-rose-200'
-                            }`}>
+                <div className="fixed inset-0 bg-white/95 backdrop-blur-xl flex flex-col items-center justify-center z-[200] text-center p-8 animate-in fade-in zoom-in duration-300">
+                    <div className="mb-10 relative">
+                        <div className={`w-28 h-28 rounded-3xl mx-auto flex items-center justify-center shadow-2xl mb-6 ${won ? 'bg-emerald-500 shadow-emerald-200' : 'bg-rose-500 shadow-rose-200'}`}>
                             <span className="text-white text-5xl font-black">{won ? '✓' : '✗'}</span>
                         </div>
-                        <h2 className={`text-7xl font-black mb-4 tracking-tighter ${won ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        <h2 className={`text-5xl sm:text-6xl font-black mb-3 tracking-tight ${won ? 'text-emerald-600' : 'text-rose-600'}`}>
                             {won ? 'VICTORY!' : 'GAME OVER'}
                         </h2>
 
                         {room.result?.message && (
-                            <p className="text-2xl font-black text-slate-900 mb-2 animate-bounce">
+                            <p className="text-xl font-black text-slate-900 mb-2">
                                 {room.result.message}
                             </p>
                         )}
 
-                        <p className="text-xl text-slate-400 font-medium">
-                            The secret character was <span className="text-slate-900 font-black tracking-tight underline decoration-indigo-500 decoration-4 underline-offset-4">{correctCharacter?.name}</span>
+                        <p className="text-lg text-slate-500 font-medium">
+                            The secret character was <span className="text-slate-900 font-black underline decoration-sky-500 decoration-4 underline-offset-4">{correctCharacter?.name}</span>
                         </p>
 
-                        {/* Immediate Stat Feedback */}
                         {user && (
-                            <div className="mt-8 p-6 bg-slate-50 rounded-3xl border border-slate-100 inline-flex items-center gap-6">
+                            <div className="mt-6 p-5 bg-slate-50 rounded-2xl border border-slate-200 inline-flex items-center gap-6">
                                 <div className="text-left">
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Career Record</span>
                                     <div className="flex items-center gap-4">
                                         <div className="flex flex-col">
-                                            <span className="text-2xl font-black text-emerald-500 leading-none">{stats?.wins || 0}</span>
-                                            <span className="text-[8px] font-bold text-slate-400 uppercase">Wins</span>
+                                            <span className="text-2xl font-black text-emerald-600 leading-none">{stats?.wins || 0}</span>
+                                            <span className="text-[8px] font-bold text-slate-400 uppercase mt-0.5">Wins</span>
                                         </div>
                                         <div className="w-[1px] h-8 bg-slate-200" />
                                         <div className="flex flex-col">
                                             <span className="text-2xl font-black text-rose-500 leading-none">{stats?.losses || 0}</span>
-                                            <span className="text-[8px] font-bold text-slate-400 uppercase">Losses</span>
+                                            <span className="text-[8px] font-bold text-slate-400 uppercase mt-0.5">Losses</span>
                                         </div>
                                     </div>
                                 </div>
@@ -584,13 +564,13 @@ const GameBoard = () => {
                     <div className="flex flex-col gap-3 w-full max-w-xs">
                         <button
                             onClick={restartGame}
-                            className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 rounded-[2rem] font-black text-xl text-white shadow-2xl shadow-indigo-200 transition-all transform hover:scale-105 active:scale-95"
+                            className="w-full py-4 bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-500 hover:to-blue-600 rounded-2xl font-black text-lg text-white shadow-xl shadow-sky-600/25 transition-all transform hover:scale-[1.02] active:scale-95"
                         >
                             Play Again
                         </button>
                         <button
                             onClick={leaveRoom}
-                            className="w-full py-4 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 rounded-[2rem] font-black text-base transition-all transform hover:scale-105 active:scale-95"
+                            className="w-full py-3.5 bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 border border-slate-200 hover:border-rose-200 rounded-2xl font-black text-base transition-all active:scale-95"
                         >
                             Main Menu
                         </button>
