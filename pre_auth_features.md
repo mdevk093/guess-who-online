@@ -9,7 +9,6 @@ This document details all high-priority gameplay fixes, lobby management feature
 | ID | Feature / Fix | Priority | Status | Target Files |
 | :--- | :--- | :--- | :--- | :--- |
 | **NFR-SEC-07** | Server Root Directory Exposure Hardening | Critical | `[Implemented]` | `server/index.js` |
-| **FR-CFG-06** | Dynamic Card Deck Randomization (24 Cards sampled per Match/Rematch) | High | `[Planned]` | `socketHandler.js`, `CharacterSelect.jsx` |
 | **FR-ROOM-08** | Inactive Match Cancellation (3-Minute Inactivity Auto-Abort) | High | `[Implemented]` | `socketHandler.js`, `GameContext.jsx`, `CharacterSelect.jsx` |
 | **FR-CHAT-07** | Auto-Scroll Chat to Bottom on New Messages | High | `[Implemented]` | `Chat.jsx`, `GameBoard.jsx` |
 | **FR-CHAT-06** | Decode HTML Entities (`&#39;`, `&quot;`) in Chat & Player Names | High | `[Planned]` | `Chat.jsx`, `GameBoard.jsx`, `CharacterSelect.jsx` |
@@ -19,6 +18,9 @@ This document details all high-priority gameplay fixes, lobby management feature
 | **NFR-UX-04** | Mid-Match Quit / Leave Confirmation Modal | Medium | `[Implemented]` | `GameBoard.jsx`, `CharacterSelect.jsx` |
 | **NFR-UX-05** | Persistent Audio Mute / Unmute Toggle (`🔊 / 🔇`) | Medium | `[Planned]` | `GameContext.jsx`, `GameBoard.jsx`, `CharacterSelect.jsx` |
 | **NFR-UX-06** | "How to Play" Interactive Rules Modal | Medium | `[Planned]` | `Landing.jsx`, `GameBoard.jsx` |
+
+> [!NOTE]
+> **Dynamic Card Randomization** has been assigned to the **Paid Tier / Premium Features** (`FR-DECK-07`) so paid users hosting matches with large pools (e.g. 50+ countries or custom photo libraries) can subsample 24 random cards per round.
 
 ---
 
